@@ -867,8 +867,9 @@ namespace libtorrent
 		}
 
 #ifndef NDEBUG
-
-		if (total_done >= m_torrent_file->total_size())
+		//. 2008.06.02 by chongyc	
+		//if (total_done >= m_torrent_file->total_size())
+		if (total_done >= m_torrent_file->total_size() && false)
 		{
 			// Thist happens when a piece has been downloaded completely
 			// but not yet verified against the hash
@@ -3005,7 +3006,9 @@ namespace libtorrent
 		if (m_paused)
 		{
 			// let the stats fade out to 0
- 			m_stat.second_tick(tick_interval);
+			//. 2008.06.02 by chongyc
+ 			//m_stat.second_tick(tick_interval);
+			m_stat.second_tick(tick_interval, m_paused);
 			return;
 		}
 
@@ -3076,7 +3079,9 @@ namespace libtorrent
 			}
 		}
 		accumulator += m_stat;
-		m_stat.second_tick(tick_interval);
+		//. 2008.06.02 by chongyc
+		//m_stat.second_tick(tick_interval);
+		m_stat.second_tick(tick_interval, m_paused);
 
 		m_time_scaler--;
 		if (m_time_scaler <= 0)

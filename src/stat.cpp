@@ -49,7 +49,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 using namespace libtorrent;
 
-void libtorrent::stat::second_tick(float tick_interval)
+//. 2008.06.02 by chongyc
+//void libtorrent::stat::second_tick(float tick_interval)
+void libtorrent::stat::second_tick(float tick_interval, bool paused)
 {
 	INVARIANT_CHECK;
 
@@ -96,11 +98,14 @@ void libtorrent::stat::second_tick(float tick_interval)
 	m_mean_upload_payload_rate /= history;
 
 	//. 2008.05.20 by chongyc
-	m_elapsed_time += tick_interval;
-	if (m_elapsed_time > 0)
+	if (!paused)
 	{
-		m_averagr_download_rate = m_total_download_payload/m_elapsed_time;
-		m_average_upload_rate = m_total_upload_payload/m_elapsed_time;
-		m_average_webseed_rate = m_webseed_total_download_payload/m_elapsed_time;
+		m_elapsed_time += tick_interval;
+		if (m_elapsed_time > 0)
+		{
+			m_averagr_download_rate = m_total_download_payload/m_elapsed_time;
+			m_average_upload_rate = m_total_upload_payload/m_elapsed_time;
+			m_average_webseed_rate = m_webseed_total_download_payload/m_elapsed_time;
+		}
 	}
 }

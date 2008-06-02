@@ -140,7 +140,9 @@ namespace libtorrent
 		}
 
 		// should be called once every second
-		void second_tick(float tick_interval);
+		//. 2008.06.02 by chongyc
+		//void second_tick(float tick_interval);
+		void second_tick(float tick_interval, bool paused);
 
 		float upload_rate() const { return m_mean_upload_rate; }
 		float download_rate() const { return m_mean_download_rate; }

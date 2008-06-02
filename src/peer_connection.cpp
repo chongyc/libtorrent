@@ -2234,7 +2234,9 @@ namespace libtorrent
 			&& on_local_network();
 		}
 
-		m_statistics.second_tick(tick_interval);
+		//. 2008.06.02 by chongyc
+		//m_statistics.second_tick(tick_interval);
+		m_statistics.second_tick(tick_interval, true);
 
 		if (!t->valid_metadata()) return;
 

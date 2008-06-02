@@ -1400,7 +1400,9 @@ namespace detail
 			++i;
 		}
 
-		m_stat.second_tick(tick_interval);
+		//. 2008.06.02 by chongyc
+		//m_stat.second_tick(tick_interval);
+		m_stat.second_tick(tick_interval, true);
 
 		// --------------------------------------------------------------
 		// unchoke set and optimistic unchoke calculations
