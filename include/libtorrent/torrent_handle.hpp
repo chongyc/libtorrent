@@ -88,6 +88,8 @@ namespace libtorrent
 			, total_upload(0)
 			, total_payload_download(0)
 			, total_payload_upload(0)
+			, webseed_total_download(0)			//. 2008.05.20 by chongyc
+			, webseed_total_payload_download(0)	//. 2008.05.20 by chongyc
 			, total_failed_bytes(0)
 			, total_redundant_bytes(0)
 			, download_rate(0)
@@ -145,6 +147,10 @@ namespace libtorrent
 		size_type total_payload_download;
 		size_type total_payload_upload;
 
+		//. 2008.05.20 by chongyc
+		size_type webseed_total_download;
+		size_type webseed_total_payload_download;
+
 		// the amount of payload bytes that
 		// has failed their hash test
 		size_type total_failed_bytes;
@@ -162,6 +168,13 @@ namespace libtorrent
 		// sent and received
 		float download_payload_rate;
 		float upload_payload_rate;
+
+		// 2008.05.10 by chongyc
+		// average download rate, upload rate, webseed rate, and elapsed time
+		float average_download_rate;
+		float average_upload_rate;
+		float average_webseed_rate;
+		float elapsed_time;
 
 		// the number of peers this torrent is connected to
 		// that are seeding.
@@ -304,6 +317,10 @@ namespace libtorrent
 		bool has_metadata() const;
 		const torrent_info& get_torrent_info() const;
 		bool is_valid() const;
+
+		//. 2008.05.22 by chongyc
+		bool is_fake_torrent();
+		void fake_torrent(bool fake);
 
 		bool is_seed() const;
 		bool is_finished() const;

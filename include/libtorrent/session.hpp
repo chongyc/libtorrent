@@ -83,7 +83,9 @@ namespace libtorrent
 		// workaround for microsofts
 		// hardware exceptions that makes
 		// it hard to debug stuff
-#ifdef _MSC_VER
+		//. 2008.05.20 by chongyc
+//#ifdef _MSC_VER
+#if defined(_MSC_VER)  && defined(DISABLE_ZP2P_CLIENT)
 		struct eh_initializer
 		{
 			eh_initializer()

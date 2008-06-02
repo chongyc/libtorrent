@@ -60,12 +60,17 @@ natpmp::natpmp(io_service& ios, address const& listen_interface, portmap_callbac
 	, m_send_timer(ios)
 	, m_refresh_timer(ios)
 	, m_disabled(false)
+#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
+	//. 2005.05.20 by chongyc
+	, m_log(GetHomePath(), "natpmp.log", 0)
+#endif
 {
 	m_mappings[0].protocol = 2; // tcp
 	m_mappings[1].protocol = 1; // udp
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log.open("natpmp.log", std::ios::in | std::ios::out | std::ios::trunc);
+	//x 2005.05.16 by chongyc
+	//m_log.open("natpmp.log", std::ios::in | std::ios::out | std::ios::trunc);
 #endif
 	rebind(listen_interface);
 }
@@ -90,7 +95,7 @@ void natpmp::rebind(address const& listen_interface) try
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	m_log << time_now_string()
-		<< " local ip: " << local.to_string() << std::endl;
+		<< " local ip: " << local.to_string() << "\n";
 #endif
 
 	if (!is_local(local))
@@ -111,7 +116,7 @@ void natpmp::rebind(address const& listen_interface) try
 	m_nat_endpoint = nat_endpoint;
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << "assuming router is at: " << m_nat_endpoint.address().to_string() << std::endl;
+	m_log << "assuming router is at: " << m_nat_endpoint.address().to_string() << "\n";
 #endif
 
 	m_socket.open(udp::v4());
@@ -130,7 +135,7 @@ catch (std::exception& e)
 	std::stringstream msg;
 	msg << "NAT-PMP disabled: " << e.what();
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << msg.str() << std::endl;
+	m_log << msg.str() << "\n";
 #endif
 	m_callback(0, 0, msg.str());
 };
@@ -186,7 +191,7 @@ void natpmp::send_map_request(int i) try
 	m_log << time_now_string()
 		<< " ==> port map request: " << (m.protocol == 1 ? "udp" : "tcp")
 		<< " local: " << m.local_port << " external: " << m.external_port
-		<< " ttl: " << ttl << std::endl;
+		<< " ttl: " << ttl << "\n";
 #endif
 
 	m_socket.send_to(asio::buffer(buf, 12), m_nat_endpoint);
@@ -251,27 +256,27 @@ void natpmp::on_reply(asio::error_code const& e
 		m_log << time_now_string()
 			<< " <== port map response: " << (cmd - 128 == 1 ? "udp" : "tcp")
 			<< " local: " << private_port << " external: " << public_port
-			<< " ttl: " << lifetime << std::endl;
+			<< " ttl: " << lifetime << "\n";
 #endif
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		if (version != 0)
 		{
-			m_log << "*** unexpected version: " << version << std::endl;
+			m_log << "*** unexpected version: " << version << "\n";
 		}
 #endif
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		if (private_port != m.local_port)
 		{
-			m_log << "*** unexpected local port: " << private_port << std::endl;
+			m_log << "*** unexpected local port: " << private_port << "\n";
 		}
 #endif
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		if (cmd != 128 + m.protocol)
 		{
-			m_log << "*** unexpected protocol: " << (cmd - 128) << std::endl;
+			m_log << "*** unexpected protocol: " << (cmd - 128) << "\n";
 		}
 #endif
 
@@ -290,7 +295,7 @@ void natpmp::on_reply(asio::error_code const& e
 		if (result != 0)
 		{
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-			m_log << "*** ERROR: " << result << std::endl;
+			m_log << "*** ERROR: " << result << "\n";
 #endif
 			std::stringstream errmsg;
 			errmsg << "NAT router reports error (" << result << ") ";
@@ -353,7 +358,7 @@ void natpmp::mapping_expired(asio::error_code const& e, int i)
 {
 	if (e) return;
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << "*** mapping " << i << " expired, updating" << std::endl;
+	m_log << "*** mapping " << i << " expired, updating" << "\n";
 #endif
 	refresh_mapping(i);
 }

@@ -203,6 +203,7 @@ namespace libtorrent
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
 		, m_policy(this)
+		, m_fake(false)	//. 2008.05.22 by chongyc
 	{
 #ifndef NDEBUG
 		m_files_checked = false;
@@ -265,6 +266,7 @@ namespace libtorrent
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
 		, m_policy(this)
+		, m_fake(false)	//. 2008.05.22 by chongyc
 	{
 #ifndef NDEBUG
 		m_files_checked = false;
@@ -2707,6 +2709,8 @@ namespace libtorrent
 #ifndef NDEBUG
 	void torrent::check_invariant() const
 	{
+//. 2008.05.20
+#ifndef TORRENT_DISABLE_INVARIANT_CHECKS
 		session_impl::mutex_t::scoped_lock l(m_ses.m_mutex);
 
 		TORRENT_ASSERT(m_bandwidth_queue[0].size() <= m_connections.size());
@@ -2814,6 +2818,7 @@ namespace libtorrent
 		TORRENT_ASSERT(!valid_metadata() || m_block_size > 0);
 		TORRENT_ASSERT(!valid_metadata() || (m_torrent_file->piece_length() % m_block_size) == 0);
 //		if (is_seed()) TORRENT_ASSERT(m_picker.get() == 0);
+#endif
 	}
 #endif
 
@@ -3110,12 +3115,33 @@ namespace libtorrent
 #endif
 	}
 
+	//. 2008.05.20 by chongyc
+	bool torrent::is_fake_torrent()
+	{
+		return m_fake;
+	}
+
+	//. 2008.05.22 by chongyc
+	void torrent::fake_torrent(bool fake)
+	{
+		m_fake = fake;
+	}
+
 	void torrent::on_piece_verified(int ret, disk_io_job const& j
 		, boost::function<void(bool)> f)
 	{
 		sha1_hash h(j.str);
 		session_impl::mutex_t::scoped_lock l(m_ses.m_mutex);
+
+		//. 2008.05.20 by chongyc
+		if (is_fake_torrent())
+		{
+			f(true);
+		}
+		else
+		{
 		f(m_torrent_file->hash_for_piece(j.piece) == h);
+	}
 	}
 
 	const tcp::endpoint& torrent::current_tracker() const
@@ -3191,6 +3217,11 @@ namespace libtorrent
 		boost::tie(st.total_done, st.total_wanted_done) = bytes_done();
 		TORRENT_ASSERT(st.total_done >= st.total_wanted_done);
 
+		//. 2008.05.20 by chongyc
+		st.webseed_total_payload_download = m_stat.webseed_total_payload_download();
+		st.webseed_total_download = m_stat.webseed_total_payload_download()
+			+ m_stat.webseed_total_protocol_download();
+
 		// payload transfer
 		st.total_payload_download = m_stat.total_payload_download();
 		st.total_payload_upload = m_stat.total_payload_upload();
@@ -3210,6 +3241,12 @@ namespace libtorrent
 		st.upload_rate = m_stat.upload_rate();
 		st.download_payload_rate = m_stat.download_payload_rate();
 		st.upload_payload_rate = m_stat.upload_payload_rate();
+
+		//. 2008.05.20 by chongyc
+		st.average_download_rate = m_stat.average_download_rate();
+		st.average_upload_rate = m_stat.average_upload_rate();
+		st.average_webseed_rate = m_stat.average_webseed_rate();
+		st.elapsed_time = m_stat.elapsed_time();
 
 		st.next_announce = boost::posix_time::seconds(
 			total_seconds(next_announce() - time_now()));

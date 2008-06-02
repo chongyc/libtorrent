@@ -255,6 +255,20 @@ namespace libtorrent
 		TORRENT_FORWARD_RETURN(valid_metadata(), false);
 	}
 
+	//. 2008.05.22 by chongyc
+	void torrent_handle::fake_torrent(bool fake)
+	{
+		INVARIANT_CHECK;
+		TORRENT_FORWARD(fake_torrent(fake));
+	}
+
+	//. 2008.05.22 by chongyc
+	bool torrent_handle::is_fake_torrent()
+	{
+		INVARIANT_CHECK;
+		TORRENT_FORWARD_RETURN(is_fake_torrent(), false);
+	}
+
 	bool torrent_handle::is_seed() const
 	{
 		INVARIANT_CHECK;

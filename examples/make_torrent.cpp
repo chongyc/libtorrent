@@ -50,6 +50,48 @@ POSSIBILITY OF SUCH DAMAGE.
 using namespace boost::filesystem;
 using namespace libtorrent;
 
+//. 2008.04.29 by chongyc
+void modify_torrent(char* torrent_name)
+{
+	try
+	{
+		ifstream in(complete(path(torrent_name)), std::ios_base::binary);
+		in.unsetf( std::ios_base::skipws );
+
+		// read the entry from torrent file
+		entry e = libtorrent::entry();
+		e = libtorrent::bdecode( std::istream_iterator<char>(in), std::istream_iterator<char>() );
+		in.close();
+
+		// create torrent and modify tracker info
+		boost::intrusive_ptr<torrent_info> t(new torrent_info(e));
+		std::vector<announce_entry> *tracker_urls = (std::vector<announce_entry> *)&(t->trackers());
+		tracker_urls->clear();
+//		t->add_tracker("http://192.168.1.88/announce");
+		t->add_tracker("http://221.200.112.101:2710/announce");
+
+		// get info hash from torrent
+		sha1_hash* info_hash = (sha1_hash*)&(t->info_hash());
+
+		// calculate info hash
+		const char* buf = "0123456789012345678901234567890123456789";
+		hasher h;
+		h.update(&buf[0], (int)20);
+		*info_hash = h.final();
+
+		// create the torrent and print it to out
+		ofstream out(complete(path(torrent_name)), std::ios_base::binary);
+
+		e = t->create_torrent();
+		libtorrent::bencode(std::ostream_iterator<char>(out), e);
+
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << e.what() << "\n";
+	}
+}
+
 void add_files(
 	torrent_info& t
 	, path const& p
@@ -69,27 +111,18 @@ void add_files(
 	}
 }
 
-
-int main(int argc, char* argv[])
+int make_torrent(char* torrent_file, char* announce_url, char* file_path, char* url_seed)
 {
 	using namespace libtorrent;
 	using namespace boost::filesystem;
 
 	path::default_name_check(no_check);
 
-	if (argc != 4 && argc != 5)
-	{
-		std::cerr << "usage: make_torrent <output torrent-file> "
-			"<announce url> <file or directory to create torrent from> "
-			"[url-seed]\n";
-		return 1;
-	}
-
 	try
 	{
 		boost::intrusive_ptr<torrent_info> t(new torrent_info);
-		path full_path = complete(path(argv[3]));
-		ofstream out(complete(path(argv[1])), std::ios_base::binary);
+		path full_path = complete(file_path);
+		ofstream out(complete(path(torrent_file)), std::ios_base::binary);
 
 		int piece_size = 256 * 1024;
 		char const* creator_str = "libtorrent";
@@ -100,7 +133,7 @@ int main(int argc, char* argv[])
 		file_pool fp;
 		boost::scoped_ptr<storage_interface> st(
 			default_storage_constructor(t, full_path.branch_path(), fp));
-		t->add_tracker(argv[2]);
+		t->add_tracker(announce_url);
 
 		// calculate the hash for all pieces
 		int num = t->num_pieces();
@@ -115,8 +148,8 @@ int main(int argc, char* argv[])
 
 		t->set_creator(creator_str);
 
-		if (argc == 5)
-			t->add_url_seed(argv[4]);
+		if (url_seed != NULL)
+			t->add_url_seed(url_seed);
 
 		// create the torrent and print it to out
 		entry e = t->create_torrent();
@@ -126,6 +159,38 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << e.what() << "\n";
 	}
+
+	return 0;
+}
+
+
+int main(int argc, char* argv[])
+{
+	using namespace libtorrent;
+	using namespace boost::filesystem;
+
+	path::default_name_check(no_check);
+
+#if 0
+	if (argc != 4 && argc != 5)
+	{
+		std::cerr << "usage: make_torrent <output torrent-file> "
+			"<announce url> <file or directory to create torrent from> "
+			"[url-seed]\n";
+		return 1;
+	}
+
+	if (argc == 5)
+	{
+		make_torrent(argv[1], argv[2], argv[3], argv[4]);
+	}
+	else // argc == 4
+	{
+		make_torrent(argv[1], argv[2], argv[3], NULL);
+	}
+#else
+	modify_torrent("Fedora-8-Live-i686.torrent");
+#endif
 
 	return 0;
 }

@@ -2221,8 +2221,18 @@ namespace libtorrent
 		}
 #endif
 
+		//. 2008.05.20
+		peer_info p;
+		get_specific_peer_info(p);
+		if (peer_info::web_seed == p.connection_type)
+		{
+			m_ignore_bandwidth_limits = true;
+		}
+		else
+		{
 		m_ignore_bandwidth_limits = m_ses.settings().ignore_limits_on_local_network
 			&& on_local_network();
+		}
 
 		m_statistics.second_tick(tick_interval);
 
@@ -2630,7 +2640,7 @@ namespace libtorrent
 			buf += free_space;
 #ifdef TORRENT_STATS
 			m_ses.m_buffer_usage_logger << log_time() << " send_buffer: "
-				<< free_space << std::endl;
+				<< free_space << "\n";
 			m_ses.log_buffer_usage();
 #endif
 		}
@@ -2642,7 +2652,7 @@ namespace libtorrent
 		m_send_buffer.append_buffer(buffer.first, buffer.second, size
 			, bind(&session_impl::free_buffer, boost::ref(m_ses), _1, buffer.second));
 #ifdef TORRENT_STATS
-		m_ses.m_buffer_usage_logger << log_time() << " send_buffer_alloc: " << size << std::endl;
+		m_ses.m_buffer_usage_logger << log_time() << " send_buffer_alloc: " << size << "\n";
 		m_ses.log_buffer_usage();
 #endif
 		setup_send();
@@ -2662,7 +2672,7 @@ namespace libtorrent
 				, bind(&session_impl::free_buffer, boost::ref(m_ses), _1, buffer.second));
 			buffer::interval ret(buffer.first, buffer.first + size);
 #ifdef TORRENT_STATS
-			m_ses.m_buffer_usage_logger << log_time() << " allocate_buffer_alloc: " << size << std::endl;
+			m_ses.m_buffer_usage_logger << log_time() << " allocate_buffer_alloc: " << size << "\n";
 			m_ses.log_buffer_usage();
 #endif
 			return ret;
@@ -2670,7 +2680,7 @@ namespace libtorrent
 		else
 		{
 #ifdef TORRENT_STATS
-			m_ses.m_buffer_usage_logger << log_time() << " allocate_buffer: " << size << std::endl;
+			m_ses.m_buffer_usage_logger << log_time() << " allocate_buffer: " << size << "\n";
 			m_ses.log_buffer_usage();
 #endif
 			buffer::interval ret(insert, insert + size);
@@ -2969,6 +2979,8 @@ namespace libtorrent
 #ifndef NDEBUG
 	void peer_connection::check_invariant() const
 	{
+//. 2008.05.20
+#ifndef TORRENT_DISABLE_INVARIANT_CHECKS
 		for (int i = 0; i < 2; ++i)
 		{
 			// this peer is in the bandwidth history iff max_assignable < limit
@@ -3074,6 +3086,7 @@ namespace libtorrent
 			}
 		}
 */
+#endif // ifndef TORRENT_DISABLE_INVARIANT_CHECKS
 	}
 #endif
 

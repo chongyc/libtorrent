@@ -578,6 +578,11 @@ namespace detail
 		, m_logpath(logpath)
 #endif
 		, m_checker_impl(*this)
+#ifdef TORRENT_STATS
+		//. 2005.05.20 by chongyc
+		, m_stats_logger(GetHomePath(), "session_stats.log", 0)
+		, m_buffer_usage_logger(GetHomePath(), "buffer_stats.log", 0)
+#endif
 	{
 #ifdef WIN32
 		// windows XP has a limit on the number of
@@ -604,7 +609,8 @@ namespace detail
 #endif
 
 #ifdef TORRENT_STATS
-		m_stats_logger.open("session_stats.log", std::ios::trunc);
+		//x 2005.05.20 by chongyc
+		//m_stats_logger.open("session_stats.log", std::ios::trunc);
 		m_stats_logger <<
 			"1. second\n"
 			"2. upload rate\n"
@@ -615,7 +621,8 @@ namespace detail
 			"7. connecting peers\n"
 			"8. disk block buffers\n"
 			"\n";
-		m_buffer_usage_logger.open("buffer_stats.log", std::ios::trunc);
+		//x 2005.05.20 by chongyc
+		//m_buffer_usage_logger.open("buffer_stats.log", std::ios::trunc);
 		m_second_counter = 0;
 		m_buffer_allocations = 0;
 #endif
@@ -1256,7 +1263,7 @@ namespace detail
 			<< num_complete_connections << "\t"
 			<< num_half_open << "\t"
 			<< m_disk_thread.disk_allocations() << "\t"
-			<< std::endl;
+			<< "\n";
 #endif
 
 	
@@ -2063,6 +2070,11 @@ namespace detail
 		s.payload_download_rate = m_stat.download_payload_rate();
 		s.payload_upload_rate = m_stat.upload_payload_rate();
 
+		//. 2008.05.20 by chongyc
+		s.average_download_rate = m_stat.average_download_rate();
+		s.average_upload_rate = m_stat.average_upload_rate();
+		s.average_webseed_rate = m_stat.average_webseed_rate();
+
 		s.total_download = m_stat.total_protocol_download()
 			+ m_stat.total_payload_download();
 
@@ -2071,6 +2083,11 @@ namespace detail
 
 		s.total_payload_download = m_stat.total_payload_download();
 		s.total_payload_upload = m_stat.total_payload_upload();
+
+		//. 2008.05.20 by chongyc
+		s.webseed_total_download = m_stat.webseed_total_protocol_download()
+			+ m_stat.webseed_total_payload_download();
+		s.webseed_total_payload_download = m_stat.webseed_total_payload_download();
 
 #ifndef TORRENT_DISABLE_DHT
 		if (m_dht)
@@ -2439,7 +2456,7 @@ namespace detail
 #ifdef TORRENT_STATS
 		m_buffer_allocations += num_buffers;
 		m_buffer_usage_logger << log_time() << " protocol_buffer: "
-			<< (m_buffer_allocations * send_buffer_size) << std::endl;
+			<< (m_buffer_allocations * send_buffer_size) << "\n";
 #endif
 		std::pair<char*, int> ret((char*)m_send_buffers.ordered_malloc(num_buffers)
 			, num_buffers * send_buffer_size);
@@ -2459,7 +2476,7 @@ namespace detail
 		m_buffer_allocations -= num_buffers;
 		TORRENT_ASSERT(m_buffer_allocations >= 0);
 		m_buffer_usage_logger << log_time() << " protocol_buffer: "
-			<< (m_buffer_allocations * send_buffer_size) << std::endl;
+			<< (m_buffer_allocations * send_buffer_size) << "\n";
 #endif
 		m_send_buffers.ordered_free(buf, num_buffers);
 	}	

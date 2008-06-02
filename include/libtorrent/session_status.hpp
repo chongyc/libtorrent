@@ -47,11 +47,21 @@ namespace libtorrent
 		float payload_upload_rate;
 		float payload_download_rate;
 
+		// 2008.05.20 by chongyc
+		// average download/upload/webseed rates
+		float average_download_rate;
+		float average_upload_rate;
+		float average_webseed_rate;
+
 		size_type total_download;
 		size_type total_upload;
 
 		size_type total_payload_download;
 		size_type total_payload_upload;
+
+		//. 2008.05.20 by chongyc
+		size_type webseed_total_download;
+		size_type webseed_total_payload_download;
 
 		int num_peers;
 

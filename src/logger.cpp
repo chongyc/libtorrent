@@ -64,9 +64,10 @@ namespace
 	{
 		logger_peer_plugin(std::string const& filename)
 		{
-			fs::path dir(fs::complete("libtorrent_ext_logs"));
+			fs::path home_path = GetHomePath();
+			fs::path dir(home_path/"libtorrent_ext_logs");
 			if (!fs::exists(dir)) fs::create_directories(dir);
-			m_file.open((dir / filename).string().c_str(), std::ios_base::out | std::ios_base::out);
+			m_file.open((dir / filename).string().c_str(), std::ios_base::out | std::ios_base::app);
 			m_file << "\n\n\n";
 			log_timestamp();
 			m_file << "*** starting log ***\n";
@@ -222,8 +223,12 @@ namespace
 
 namespace libtorrent
 {
-
+	//. 2008.05.20 by chongyc
+#if 0
 	boost::shared_ptr<torrent_plugin> create_logger_plugin(torrent*)
+#else
+	boost::shared_ptr<torrent_plugin> create_logger_plugin(torrent*, void*)
+#endif
 	{
 		return boost::shared_ptr<torrent_plugin>(new logger_plugin());
 	}

@@ -61,9 +61,14 @@ lsd::lsd(io_service& ios, address const& listen_interface
 		, bind(&lsd::on_announce, self(), _1, _2, _3))
 	, m_broadcast_timer(ios)
 	, m_disabled(false)
+#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
+	//. 2005.05.20 by chongyc
+	, m_log(GetHomePath(), "lsd.log", 0)
+#endif
 {
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log.open("lsd.log", std::ios::in | std::ios::out | std::ios::trunc);
+	//x 2005.05.16 by chongyc
+	//m_log.open("lsd.log", std::ios::in | std::ios::out | std::ios::trunc);
 #endif
 }
 
@@ -92,7 +97,7 @@ void lsd::announce(sha1_hash const& ih, int listen_port)
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	m_log << time_now_string()
-		<< " ==> announce: ih: " << ih << " port: " << listen_port << std::endl;
+		<< " ==> announce: ih: " << ih << " port: " << listen_port << "\n";
 #endif
 
 	m_broadcast_timer.expires_from_now(milliseconds(250 * m_retry_count));
@@ -138,7 +143,7 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 	{
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	m_log << time_now_string()
-		<< " <== announce: invalid HTTP method: " << p.method() << std::endl;
+		<< " <== announce: invalid HTTP method: " << p.method() << "\n";
 #endif
 		return;
 	}
@@ -148,7 +153,7 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 	{
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	m_log << time_now_string()
-		<< " <== announce: invalid BT-SEARCH, missing port" << std::endl;
+		<< " <== announce: invalid BT-SEARCH, missing port" << "\n";
 #endif
 		return;
 	}
@@ -158,7 +163,7 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 	{
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	m_log << time_now_string()
-		<< " <== announce: invalid BT-SEARCH, missing infohash" << std::endl;
+		<< " <== announce: invalid BT-SEARCH, missing infohash" << "\n";
 #endif
 		return;
 	}
@@ -173,7 +178,7 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		m_log << time_now_string()
 			<< " *** incoming local announce " << from.address()
-			<< ":" << port << " ih: " << ih << std::endl;
+			<< ":" << port << " ih: " << ih << "\n";
 #endif
 		// we got an announce, pass it on through the callback
 		try { m_callback(tcp::endpoint(from.address(), port), ih); }

@@ -81,7 +81,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_BSD
 #endif
 
+#include <string>
 
+std::string GetHomePath();
 
 #endif // TORRENT_CONFIG_HPP_INCLUDED
 

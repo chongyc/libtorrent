@@ -73,14 +73,20 @@ namespace libtorrent
 		// we can request more bytes at once
 		request_large_blocks(true);
 		// we only want left-over bandwidth
+		//. 2008.05.20 by chongyc
+#if 0
 		set_priority(0);
+#else
+		set_priority(3);
+#endif
 		shared_ptr<torrent> tor = t.lock();
 		TORRENT_ASSERT(tor);
 		int blocks_per_piece = tor->torrent_file().piece_length() / tor->block_size();
 
 		// we always prefer downloading 1 MB chunks
 		// from web seeds
-		prefer_whole_pieces((1024 * 1024) / tor->torrent_file().piece_length());
+		//. 2008.05.20 by chongyc
+		prefer_whole_pieces((4 * 1024 * 1024) / tor->torrent_file().piece_length());
 		
 		// multiply with the blocks per piece since that many requests are
 		// merged into one http request
@@ -224,11 +230,23 @@ namespace libtorrent
 				request += "\r\nProxy-Connection: keep-alive";
 			}
 			request += "\r\nRange: bytes=";
-			request += boost::lexical_cast<std::string>(size_type(r.piece)
+			//. 2008.05.20 by chongyc
+#if 0
+			request += boost::lexical_cast<std::string>(r.piece
 				* info.piece_length() + r.start);
+#else
+			request += boost::lexical_cast<std::string>(size_type(r.piece)
+				* size_type(info.piece_length()) + size_type(r.start));
+#endif
 			request += "-";
+			//. 2008.05.20 by chongyc
+#if 0
 			request += boost::lexical_cast<std::string>(r.piece
 				* info.piece_length() + r.start + r.length - 1);
+#else
+			request += boost::lexical_cast<std::string>(size_type(r.piece)
+				* size_type(info.piece_length()) + size_type(r.start) + size_type(r.length - 1));
+#endif
 			if (m_first_request || using_proxy)
 				request += "\r\nConnection: keep-alive";
 			request += "\r\n\r\n";
@@ -346,6 +364,8 @@ namespace libtorrent
 			{
 				boost::tie(payload, protocol) = m_parser.incoming(recv_buffer);
 				m_statistics.received_bytes(payload, protocol);
+				//. 2008.05.20 by chongyc
+				m_statistics.webseed_received_bytes(payload, protocol);
 
 				TORRENT_ASSERT(recv_buffer.left() == 0 || *recv_buffer.begin == 'H');
 			
@@ -384,6 +404,8 @@ namespace libtorrent
 			else
 			{
 				m_statistics.received_bytes(bytes_transferred, 0);
+				//. 2008.05.20 by chongyc
+				m_statistics.webseed_received_bytes(bytes_transferred, 0);
 			}
 
 			// we just completed reading the header

@@ -538,6 +538,10 @@ namespace libtorrent
 		// of the storage.
 		void set_metadata(entry const&);
 
+		//. 2005.05.20 by chongyc
+		bool is_fake_torrent();
+		void fake_torrent(bool fake);
+	
 	private:
 
 		void on_files_deleted(int ret, disk_io_job const& j);
@@ -547,7 +551,6 @@ namespace libtorrent
 
 		void on_piece_verified(int ret, disk_io_job const& j
 			, boost::function<void(bool)> f);
-	
 		void try_next_tracker();
 		int prioritize_tracker(int tracker_index);
 		void on_country_lookup(asio::error_code const& error, tcp::resolver::iterator i
@@ -797,6 +800,9 @@ namespace libtorrent
 #endif
 
 		policy m_policy;
+
+		//. 2008.05.22 by chongyc
+		bool m_fake;
 	};
 
 	inline ptime torrent::next_announce() const

@@ -351,10 +351,17 @@ namespace libtorrent
 					used_send_buffer += (*i)->send_buffer_size();
 				}
 				TORRENT_ASSERT(send_buffer_capacity >= used_send_buffer);
+				//. 2008.05.20 by chongyc
+#if 0
 				m_buffer_usage_logger << log_time() << " send_buffer_size: " << send_buffer_capacity << std::endl;
 				m_buffer_usage_logger << log_time() << " used_send_buffer: " << used_send_buffer << std::endl;
 				m_buffer_usage_logger << log_time() << " send_buffer_utilization: "
 					<< (used_send_buffer * 100.f / send_buffer_capacity) << std::endl;
+#else
+				m_buffer_usage_logger << log_time() << " send_buffer_size: " << send_buffer_capacity
+					<< " used_send_buffer: " << used_send_buffer 
+					<< " send_buffer_utilization: "	<< (used_send_buffer * 100.f / send_buffer_capacity) << "\n";
+#endif
 			}
 #endif
 			void start_lsd();
@@ -568,10 +575,14 @@ namespace libtorrent
 
 #ifdef TORRENT_STATS
 			// logger used to write bandwidth usage statistics
-			std::ofstream m_stats_logger;
+			//. 2005.05.20 by chongyc
+			libtorrent::logger m_stats_logger;
+			//std::ofstream m_stats_logger;
 			int m_second_counter;
 			// used to log send buffer usage statistics
-			std::ofstream m_buffer_usage_logger;
+			//. 2005.05.20 by chongyc
+			libtorrent::logger m_buffer_usage_logger;
+			//std::ofstream m_buffer_usage_logger;
 			// the number of send buffers that are allocated
 			int m_buffer_allocations;
 #endif
