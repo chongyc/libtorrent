@@ -79,7 +79,7 @@ upnp::upnp(io_service& ios, connection_queue& cc
 	, m_ignore_outside_network(ignore_nonrouters)
 	, m_cc(cc)
 #ifdef TORRENT_UPNP_LOGGING
-	//. 2005.05.20 by chongyc
+	//. 2008.05.20 by chongyc
 	, m_log(GetHomePath(), "upnp.log", 0)
 #endif
 {

@@ -62,12 +62,12 @@ lsd::lsd(io_service& ios, address const& listen_interface
 	, m_broadcast_timer(ios)
 	, m_disabled(false)
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//. 2005.05.20 by chongyc
+	//. 2008.05.20 by chongyc
 	, m_log(GetHomePath(), "lsd.log", 0)
 #endif
 {
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//x 2005.05.16 by chongyc
+	//x 2008.05.16 by chongyc
 	//m_log.open("lsd.log", std::ios::in | std::ios::out | std::ios::trunc);
 #endif
 }

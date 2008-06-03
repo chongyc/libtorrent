@@ -208,6 +208,10 @@ namespace libtorrent
 		void print(std::ostream& os) const TORRENT_DEPRECATED;
 // ------- end deprecation -------
 
+		//. 2008.06.03 by chongyc
+		bool is_fake_torrent() const;
+		void fake_torrent(bool fake);
+
 		bool is_valid() const { return m_piece_length > 0; }
 
 		bool priv() const { return m_private; }
@@ -326,6 +330,9 @@ namespace libtorrent
 		// reproduce the info-section when sending the metadata
 		// to peers.
 		entry m_extra_info;
+
+		//. 2008.06.03 by chongyc
+		bool m_fake;
 
 #ifndef NDEBUG
 	public:

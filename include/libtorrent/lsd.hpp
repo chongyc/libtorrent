@@ -43,7 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
-//. 2005.05.20 by chongyc
+//. 2008.05.20 by chongyc
 #include "libtorrent/debug.hpp"
 
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
@@ -89,7 +89,7 @@ private:
 
 	bool m_disabled;
 #if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//. 2005.05.20 by chongyc
+	//. 2008.05.20 by chongyc
 	libtorrent::logger	m_log;
 	//std::ofstream m_log;
 #endif

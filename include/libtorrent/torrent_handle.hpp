@@ -319,8 +319,9 @@ namespace libtorrent
 		bool is_valid() const;
 
 		//. 2008.05.22 by chongyc
-		bool is_fake_torrent();
-		void fake_torrent(bool fake);
+		//x 2008.06.03 by chongyc
+		//bool is_fake_torrent();
+		//void fake_torrent(bool fake);
 
 		bool is_seed() const;
 		bool is_finished() const;

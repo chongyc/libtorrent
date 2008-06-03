@@ -538,12 +538,13 @@ namespace libtorrent
 		// of the storage.
 		void set_metadata(entry const&);
 
-		//. 2005.05.20 by chongyc
-		bool is_fake_torrent();
-		void fake_torrent(bool fake);
-	
 	private:
 
+		//. 2008.05.20 by chongyc
+		bool is_fake_torrent();
+		//x 2008.06.03 by chongyc
+		//void fake_torrent(bool fake);
+	
 		void on_files_deleted(int ret, disk_io_job const& j);
 		void on_files_released(int ret, disk_io_job const& j);
 		void on_torrent_paused(int ret, disk_io_job const& j);
@@ -800,9 +801,6 @@ namespace libtorrent
 #endif
 
 		policy m_policy;
-
-		//. 2008.05.22 by chongyc
-		bool m_fake;
 	};
 
 	inline ptime torrent::next_announce() const

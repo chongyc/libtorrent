@@ -575,12 +575,12 @@ namespace libtorrent
 
 #ifdef TORRENT_STATS
 			// logger used to write bandwidth usage statistics
-			//. 2005.05.20 by chongyc
+			//. 2008.05.20 by chongyc
 			libtorrent::logger m_stats_logger;
 			//std::ofstream m_stats_logger;
 			int m_second_counter;
 			// used to log send buffer usage statistics
-			//. 2005.05.20 by chongyc
+			//. 2008.05.20 by chongyc
 			libtorrent::logger m_buffer_usage_logger;
 			//std::ofstream m_buffer_usage_logger;
 			// the number of send buffers that are allocated

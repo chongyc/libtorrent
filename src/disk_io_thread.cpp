@@ -55,7 +55,7 @@ namespace libtorrent
 		, m_allocations(0)
 #endif
 #ifdef TORRENT_DISK_STATS
-		//. 2005.05.16 by chongyc
+		//. 2008.05.16 by chongyc
 		, m_log(GetHomePath(), "disk_io_thread.log", 0)
 		//m_log.open("disk_io_thread.log", std::ios::trunc);
 #endif
@@ -326,7 +326,7 @@ namespace libtorrent
 						break;
 					case disk_io_job::delete_files:
 #ifdef TORRENT_DISK_STATS
-						//. 2005.05.16 by chongyc
+						//. 2008.05.16 by chongyc
 						m_log << log_time() << " delete" << "\n";
 #endif
 						j.storage->delete_files_impl();

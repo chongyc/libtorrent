@@ -1720,6 +1720,12 @@ namespace libtorrent
 				num_pieces = 0;
 			}
 
+			//. 2008.06.03 by chongyc
+			if (m_info->is_fake_torrent())
+			{
+				m_storage->delete_files();
+			}
+
 			m_piece_data.resize(int(m_info->piece_length()));
 			int piece_size = int(m_info->piece_size(m_current_slot));
 			int num_read = int(m_storage->read(&m_piece_data[0]

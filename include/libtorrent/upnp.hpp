@@ -38,7 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/http_connection.hpp"
 #include "libtorrent/connection_queue.hpp"
 #include "libtorrent/intrusive_ptr_base.hpp"
-//. 2005.05.20 by chongyc
+//. 2008.05.20 by chongyc
 #include "libtorrent/debug.hpp"
 
 #include <boost/function.hpp>
@@ -238,7 +238,7 @@ private:
 	connection_queue& m_cc;
 
 #ifdef TORRENT_UPNP_LOGGING
-	//. 2005.05.20 by chongyc
+	//. 2008.05.20 by chongyc
 	libtorrent::logger	m_log;
 	//std::ofstream m_log;
 #endif

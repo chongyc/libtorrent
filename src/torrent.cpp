@@ -203,7 +203,6 @@ namespace libtorrent
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
 		, m_policy(this)
-		, m_fake(false)	//. 2008.05.22 by chongyc
 	{
 #ifndef NDEBUG
 		m_files_checked = false;
@@ -266,7 +265,6 @@ namespace libtorrent
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
 		, m_policy(this)
-		, m_fake(false)	//. 2008.05.22 by chongyc
 	{
 #ifndef NDEBUG
 		m_files_checked = false;
@@ -3123,14 +3121,17 @@ namespace libtorrent
 	//. 2008.05.20 by chongyc
 	bool torrent::is_fake_torrent()
 	{
-		return m_fake;
+		//. 2008.06.03 by chongyc
+		return m_torrent_file->is_fake_torrent();
 	}
 
 	//. 2008.05.22 by chongyc
-	void torrent::fake_torrent(bool fake)
-	{
-		m_fake = fake;
-	}
+	//x 2008.06.03 by chongyc
+	//void torrent::fake_torrent(bool fake)
+	//{
+	//	//. 2008.06.03 by chongyc
+	//	m_torrent_file->fake_torrent(fake);
+	//}
 
 	void torrent::on_piece_verified(int ret, disk_io_job const& j
 		, boost::function<void(bool)> f)
@@ -3142,11 +3143,13 @@ namespace libtorrent
 		if (is_fake_torrent())
 		{
 			f(true);
+			//. 2008.06.03 by chongyc
+			//m_torrent_file->set_hash(j.piece, h);
 		}
 		else
 		{
-		f(m_torrent_file->hash_for_piece(j.piece) == h);
-	}
+			f(m_torrent_file->hash_for_piece(j.piece) == h);
+		}
 	}
 
 	const tcp::endpoint& torrent::current_tracker() const

@@ -579,7 +579,7 @@ namespace detail
 #endif
 		, m_checker_impl(*this)
 #ifdef TORRENT_STATS
-		//. 2005.05.20 by chongyc
+		//. 2008.05.20 by chongyc
 		, m_stats_logger(GetHomePath(), "session_stats.log", 0)
 		, m_buffer_usage_logger(GetHomePath(), "buffer_stats.log", 0)
 #endif
@@ -609,7 +609,7 @@ namespace detail
 #endif
 
 #ifdef TORRENT_STATS
-		//x 2005.05.20 by chongyc
+		//x 2008.05.20 by chongyc
 		//m_stats_logger.open("session_stats.log", std::ios::trunc);
 		m_stats_logger <<
 			"1. second\n"
@@ -621,7 +621,7 @@ namespace detail
 			"7. connecting peers\n"
 			"8. disk block buffers\n"
 			"\n";
-		//x 2005.05.20 by chongyc
+		//x 2008.05.20 by chongyc
 		//m_buffer_usage_logger.open("buffer_stats.log", std::ios::trunc);
 		m_second_counter = 0;
 		m_buffer_allocations = 0;

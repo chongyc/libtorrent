@@ -227,6 +227,7 @@ namespace libtorrent
 		, m_multifile(false)
 		, m_private(false)
 		, m_extra_info(entry::dictionary_t)
+		, m_fake(false)	//. 2008.06.03 by chongyc
 #ifndef NDEBUG
 		, m_half_metadata(false)
 #endif
@@ -255,6 +256,7 @@ namespace libtorrent
 		, m_multifile(false)
 		, m_private(false)
 		, m_extra_info(entry::dictionary_t)
+		, m_fake(false)	//. 2008.06.03 by chongyc
 #ifndef NDEBUG
 		, m_half_metadata(false)
 #endif
@@ -271,6 +273,7 @@ namespace libtorrent
 		, m_multifile(false)
 		, m_private(false)
 		, m_extra_info(entry::dictionary_t)
+		, m_fake(false)	//. 2008.06.03 by chongyc
 #ifndef NDEBUG
 		, m_half_metadata(false)
 #endif
@@ -298,6 +301,7 @@ namespace libtorrent
 		swap(m_multifile, ti.m_multifile);
 		swap(m_private, ti.m_private);
 		m_extra_info.swap(ti.m_extra_info);
+		swap(m_fake, ti.m_fake);	//. 2008.06.03 by chongyc
 #ifndef NDEBUG
 		swap(m_half_metadata, ti.m_half_metadata);
 #endif
@@ -934,6 +938,18 @@ namespace libtorrent
 		ret.start = int(offset - ret.piece * piece_length());
 		ret.length = size;
 		return ret;
+	}
+
+	//. 2008.06.03 by chongyc
+	bool torrent_info::is_fake_torrent() const
+	{
+		return m_fake;
+	}
+
+	//. 2008.06.03 by chongyc
+	void torrent_info::fake_torrent(bool fake)
+	{
+		m_fake = fake;
 	}
 
 }
