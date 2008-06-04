@@ -478,7 +478,7 @@ void add_torrent(libtorrent::session& ses
 	h.add_url_seed(WEB_SEED_URL);
 
 	//. 2008.05.22 by chongyc
-	assert(! h.is_fake_torrent());
+	//assert(! h.is_fake_torrent());
 
 	h.set_max_connections(60);
 	h.set_max_uploads(-1);
@@ -930,9 +930,14 @@ int main(int ac, char* av[])
 					//if (url_seed != NULL)
 					//	t->add_url_seed(url_seed);
 
+					assert(! t->is_fake_torrent());
+					t->fake_torrent(true);
+					assert(t->is_fake_torrent());
+
 					// create the torrent and print it to out
 					entry e = t->create_torrent();
 					//libtorrent::bencode(std::ostream_iterator<char>(out), e);
+					assert(t->is_fake_torrent());
 
 					entry resume_data;
 					try
@@ -968,9 +973,9 @@ int main(int ac, char* av[])
 					}
 
 					//. 2008.05.22 by chongyc
-					assert(! h.is_fake_torrent());
-					h.fake_torrent(true);
-					assert(h.is_fake_torrent());
+					//assert(! h.is_fake_torrent());
+					//h.fake_torrent(true);
+					//assert(h.is_fake_torrent());
 
 					h.set_max_connections(60);
 					h.set_max_uploads(-1);

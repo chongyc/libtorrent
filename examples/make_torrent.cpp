@@ -195,3 +195,9 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+std::string GetHomePath()
+{
+	std::string homepath = ".";
+
+	return homepath;
+}

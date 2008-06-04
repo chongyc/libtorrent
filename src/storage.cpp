@@ -335,7 +335,10 @@ namespace libtorrent
 					+ " bytes";
 				return false;
 			}
-			if ((compact_mode && time != s->second)
+			//. 2008.06.03 by chongyc
+			//if ((compact_mode && time != s->second)
+			//	|| (!compact_mode && time < s->second))
+			if ((compact_mode && time > s->second + 10*60)
 				|| (!compact_mode && time < s->second))
 			{
 				if (error) *error = "timestamp mismatch for file '"
