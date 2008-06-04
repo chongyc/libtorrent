@@ -103,9 +103,15 @@ void libtorrent::stat::second_tick(float tick_interval, bool paused)
 		m_elapsed_time += tick_interval;
 		if (m_elapsed_time > 0)
 		{
+#if 0
+			m_averagr_download_rate = (m_total_download_protocol + m_total_download_payload)/m_elapsed_time;
+			m_average_upload_rate = (m_total_upload_protocol + m_total_upload_payload)/m_elapsed_time;
+			m_average_webseed_rate = (m_webseed_total_download_protocol + m_webseed_total_download_payload)/m_elapsed_time;
+#else
 			m_averagr_download_rate = m_total_download_payload/m_elapsed_time;
 			m_average_upload_rate = m_total_upload_payload/m_elapsed_time;
 			m_average_webseed_rate = m_webseed_total_download_payload/m_elapsed_time;
+#endif
 		}
 	}
 }
