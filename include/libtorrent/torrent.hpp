@@ -526,6 +526,10 @@ namespace libtorrent
 		int max_connections() const { return m_max_connections; }
 		void move_storage(fs::path const& save_path);
 
+		//. 2008.06.19 by chongyc
+		void set_max_webseed_connections(int limit);
+		int max_webseed_connections() const { return m_max_webseed_connections; }
+
 		// unless this returns true, new connections must wait
 		// with their initialization.
 		bool ready_for_connections() const
@@ -633,6 +637,9 @@ namespace libtorrent
 		// The list of web seeds in this torrent. Seeds
 		// with fatal errors are removed from the set
 		std::set<std::string> m_web_seeds;
+
+		//. 2008.06.19 by chongyc
+		int m_max_webseed_connections;
 
 		// a list of web seeds that have failed and are
 		// waiting to be retried

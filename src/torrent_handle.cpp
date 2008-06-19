@@ -194,6 +194,14 @@ namespace libtorrent
 		TORRENT_FORWARD(set_max_connections(max_connections));
 	}
 
+	//. 2008.06.19 by chongyc	
+	void torrent_handle::set_max_webseed_connections(int max_connections) const
+	{
+		INVARIANT_CHECK;
+		TORRENT_ASSERT(max_connections >= 1);
+		TORRENT_FORWARD(set_max_webseed_connections(max_connections));
+	}
+
 	void torrent_handle::set_peer_upload_limit(tcp::endpoint ip, int limit) const
 	{
 		INVARIANT_CHECK;

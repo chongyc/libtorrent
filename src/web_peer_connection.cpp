@@ -391,6 +391,16 @@ namespace libtorrent
 					{
 						// temporarily unavailable, retry later
 						t->retry_url_seed(m_url);
+
+						//. 2008.06.19 by chongyc
+						//. this may occurred when we try to multiple-connect to web site that does't allow multiple-connections.
+						//. so decrease maximum connection number by 1 
+						int limit = t->max_webseed_connections();
+						if (limit > 1) {
+							limit -= 1;
+							t->set_max_webseed_connections(limit);
+						}
+
 					}
 					t->remove_url_seed(m_url);
 					std::string error_msg = boost::lexical_cast<std::string>(m_parser.status_code())

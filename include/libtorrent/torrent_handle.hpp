@@ -416,6 +416,9 @@ namespace libtorrent
 		// -1 means unlimited connections
 		void set_max_connections(int max_connections) const;
 
+		//. 2008.06.19 by chongyc
+		void set_max_webseed_connections(int max_connections) const;
+
 		void set_tracker_login(std::string const& name
 			, std::string const& password) const;
 

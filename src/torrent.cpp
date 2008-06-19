@@ -202,6 +202,7 @@ namespace libtorrent
 		, m_max_uploads((std::numeric_limits<int>::max)())
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
+		, m_max_webseed_connections(1)	//. 2008.06.19 by chongyc
 		, m_policy(this)
 	{
 #ifndef NDEBUG
@@ -264,6 +265,7 @@ namespace libtorrent
 		, m_max_uploads((std::numeric_limits<int>::max)())
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
+		, m_max_webseed_connections(1)	//. 2008.06.19 by chongyc
 		, m_policy(this)
 	{
 #ifndef NDEBUG
@@ -2845,7 +2847,72 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(limit >= -1);
 		if (limit <= 0) limit = (std::numeric_limits<int>::max)();
+
+		//. 2008.06.19 by chongyc
+		assert(max_webseed_connections() > 0);
+		assert(max_webseed_connections() < 10);
+
+		if (limit < (std::numeric_limits<int>::max)())
+		{
+			if (m_max_connections < (std::numeric_limits<int>::max)())
+			{
+				int peer_limit = m_max_connections - max_webseed_connections();
+
+				assert(peer_limit >= 3);
+				if (peer_limit < 3) peer_limit = 3;
+
+				if (limit < ((std::numeric_limits<int>::max)() - peer_limit))
+					limit += peer_limit;
+				else
+					limit = (std::numeric_limits<int>::max)();
+			}
+			else if (limit < max_webseed_connections() + 3)
+			{
+				limit = max_webseed_connections() + 3;
+			}
+		}
+
+		assert(limit > 0);
+		assert(limit <= (std::numeric_limits<int>::max)());
+
 		m_max_connections = limit;
+	}
+
+	//. 2008.06.19 by chongyc	
+	void torrent::set_max_webseed_connections(int limit)
+	{
+		TORRENT_ASSERT(limit >= 1);
+		if (limit < 1) limit = 1;
+		else if (limit > 10) limit = 10;
+
+		assert(max_webseed_connections() < max_connections());
+
+		if (max_connections() < (std::numeric_limits<int>::max)())
+		{
+			int delta = limit - m_max_webseed_connections;
+			int old_limit = max_connections();
+			int peer_limit = max_connections() - m_max_webseed_connections;
+			int new_limit; 
+
+			assert(peer_limit >= 3);
+
+			if (delta > 0)
+			{
+				if (old_limit < ((std::numeric_limits<int>::max)() - delta))
+					new_limit = old_limit + delta;
+				else
+					new_limit = (std::numeric_limits<int>::max)();
+
+				set_max_connections(new_limit);
+			}
+			else if (delta < 0)
+			{
+				set_max_connections(peer_limit + limit);
+			}
+		}
+		m_max_webseed_connections = limit;
+
+		assert(max_webseed_connections() < max_connections());
 	}
 
 	void torrent::set_peer_upload_limit(tcp::endpoint ip, int limit)
@@ -3030,6 +3097,7 @@ namespace libtorrent
 			// keep trying web-seeds if there are any
 			// first find out which web seeds we are connected to
 			std::set<std::string> web_seeds;
+			int num_webseed_connections = 0;	//. 2008.06.19 by chongyc
 			for (peer_iterator i = m_connections.begin();
 				i != m_connections.end(); ++i)
 			{
@@ -3037,6 +3105,9 @@ namespace libtorrent
 					= dynamic_cast<web_peer_connection*>(*i);
 				if (!p) continue;
 				web_seeds.insert(p->url());
+
+				//. 2008.06.19 by chongyc
+				++num_webseed_connections;
 			}
 
 			for (std::set<std::string>::iterator i = m_resolving_web_seeds.begin()
@@ -3052,6 +3123,13 @@ namespace libtorrent
 			// connect to all of those that we aren't connected to
 			std::for_each(not_connected_web_seeds.begin(), not_connected_web_seeds.end()
 				, bind(&torrent::connect_to_url_seed, this, _1));
+
+			//. 2008.06.19 by chongyc
+			if (num_webseed_connections > 0 && num_webseed_connections < m_max_webseed_connections)
+			{
+				std::for_each(web_seeds.begin(), web_seeds.end()
+					, bind(&torrent::connect_to_url_seed, this, _1));
+			}
 		}
 		
 		for (peer_iterator i = m_connections.begin();
