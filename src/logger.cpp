@@ -233,6 +233,21 @@ namespace libtorrent
 		return boost::shared_ptr<torrent_plugin>(new logger_plugin());
 	}
 
-}
+	//. 2008.06.21 by chongyc
+	bool logger_setting::log_lsd = false;
+	bool logger_setting::log_pex = false;
+	bool logger_setting::log_dht = false;
 
+	bool logger_setting::log_natpmp = false;
+	bool logger_setting::log_upnp = false;
+
+	bool logger_setting::log_session = false;
+	bool logger_setting::log_torrent = false;
+	bool logger_setting::log_tracker = false;
+
+	bool logger_setting::log_peer_connection = false;
+	bool logger_setting::log_bt_connection = false;
+	bool logger_setting::log_web_connection = false;
+
+}
 

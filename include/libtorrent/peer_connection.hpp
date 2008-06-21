@@ -287,9 +287,7 @@ namespace libtorrent
 
 		int desired_queue_size() const { return m_desired_queue_size; }
 
-#ifdef TORRENT_VERBOSE_LOGGING
 		boost::shared_ptr<logger> m_logger;
-#endif
 
 		// the message handlers are called
 		// each time a recv() returns some new
@@ -362,9 +360,13 @@ namespace libtorrent
 		virtual boost::optional<piece_block_progress>
 		downloading_piece_progress() const
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "downloading_piece_progress() dispatched to the base class!\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "downloading_piece_progress() dispatched to the base class!\n";
+			}
+
+
 			return boost::optional<piece_block_progress>();
 		}
 

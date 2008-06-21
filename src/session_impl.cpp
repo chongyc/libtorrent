@@ -201,11 +201,14 @@ namespace detail
 						m_ses.m_alerts.post_alert(fastresume_rejected_alert(
 							t->torrent_ptr->get_handle()
 							, error_msg));
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-						(*m_ses.m_logger) << "fastresume data for "
-							<< t->torrent_ptr->torrent_file().name() << " rejected: "
-							<< error_msg << "\n";
-#endif
+
+						//. 2008.06.21 by chongyc
+						if (logger_setting::log_session)
+						{
+							(*m_ses.m_logger) << "fastresume data for "
+								<< t->torrent_ptr->torrent_file().name() << " rejected: "
+								<< error_msg << "\n";
+						}
 					}
 
 					mutex::scoped_lock l2(m_mutex);
@@ -546,9 +549,7 @@ namespace detail
 		std::pair<int, int> listen_port_range
 		, fingerprint const& cl_fprint
 		, char const* listen_interface
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		, fs::path const& logpath
-#endif
 		)
 		: m_send_buffers(send_buffer_size)
 		, m_files(40)
@@ -574,9 +575,7 @@ namespace detail
 #endif
 		, m_timer(m_io_service)
 		, m_next_connect_torrent(0)
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		, m_logpath(logpath)
-#endif
 		, m_checker_impl(*this)
 #ifdef TORRENT_STATS
 		//. 2008.05.20 by chongyc
@@ -603,10 +602,12 @@ namespace detail
 		m_bandwidth_manager[peer_connection::download_channel] = &m_download_channel;
 		m_bandwidth_manager[peer_connection::upload_channel] = &m_upload_channel;
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		m_logger = create_log("main_session", listen_port(), false);
-		(*m_logger) << time_now_string() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << "\n";
+		}
 
 #ifdef TORRENT_STATS
 		//x 2008.05.20 by chongyc
@@ -678,9 +679,13 @@ namespace detail
 	{
 		mutex_t::scoped_lock l(m_mutex);
 		if (m_abort) return;
-#if defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " *** ABORT CALLED ***\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " *** ABORT CALLED ***\n";
+		}
+
 		// abort the main thread
 		m_abort = true;
 		if (m_lsd) m_lsd->close();
@@ -698,9 +703,12 @@ namespace detail
 			i->sock->close();
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " aborting all torrents\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " aborting all torrents\n";
+		}
+
 		// abort all torrents
 		for (torrent_map::iterator i = m_torrents.begin()
 			, end(m_torrents.end()); i != end; ++i)
@@ -708,15 +716,22 @@ namespace detail
 			i->second->abort();
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " aborting all tracker requests\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " aborting all tracker requests\n";
+		}
+
 		m_tracker_manager.abort_all_requests();
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " sending event=stopped to trackers\n";
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " sending event=stopped to trackers\n";
+		}
+
 		int counter = 0;
-#endif
+
 		for (torrent_map::iterator i = m_torrents.begin();
 			i != m_torrents.end(); ++i)
 		{
@@ -725,9 +740,8 @@ namespace detail
 			if ((!t.is_paused() || t.should_request())
 				&& !t.trackers().empty())
 			{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 				++counter;
-#endif
+
 				tracker_request req = t.generate_tracker_request();
 				TORRENT_ASSERT(req.event == tracker_request::stopped);
 				req.listen_port = 0;
@@ -735,24 +749,35 @@ namespace detail
 					req.listen_port = m_listen_sockets.front().external_port;
 				req.key = m_key;
 				std::string login = i->second->tracker_login();
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-				boost::shared_ptr<tracker_logger> tl(new tracker_logger(*this));
-				m_tracker_loggers.push_back(tl);
-				m_tracker_manager.queue_request(m_strand, m_half_open, req, login
-					, m_listen_interface.address(), tl);
+
+#if 1
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
+				{
+					boost::shared_ptr<tracker_logger> tl(new tracker_logger(*this));
+					m_tracker_loggers.push_back(tl);
+					m_tracker_manager.queue_request(m_strand, m_half_open, req, login
+						, m_listen_interface.address(), tl);
+				}
 #else
 				m_tracker_manager.queue_request(m_strand, m_half_open, req, login
 					, m_listen_interface.address());
 #endif
 			}
 		}
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " sent " << counter << " tracker stop requests\n";
-#endif
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " aborting all connections (" << m_connections.size() << ")\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " sent " << counter << " tracker stop requests\n";
+		}
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " aborting all connections (" << m_connections.size() << ")\n";
+		}
+
 		// abort all connections
 		while (!m_connections.empty())
 		{
@@ -763,9 +788,12 @@ namespace detail
 			TORRENT_ASSERT(conn == int(m_connections.size()) + 1);
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " shutting down connection queue\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " shutting down connection queue\n";
+		}
+
 		m_half_open.close();
 
 		m_download_channel.close();
@@ -861,12 +889,16 @@ namespace detail
 				print_endpoint(msg, ep) << "' " << ec.message();
 				m_alerts.post_alert(listen_failed_alert(ep, msg.str()));
 			}
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			std::stringstream msg;
-			msg << "cannot bind to interface '";
-			print_endpoint(msg, ep) << "' " << ec.message();
-			(*m_logger) << msg.str() << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				std::stringstream msg;
+				msg << "cannot bind to interface '";
+				print_endpoint(msg, ep) << "' " << ec.message();
+				(*m_logger) << msg.str() << "\n";
+			}
+
 			return listen_socket_t();
 		}
 		s.external_port = s.sock->local_endpoint(ec).port();
@@ -880,12 +912,16 @@ namespace detail
 				print_endpoint(msg, ep) << "' " << ec.message();
 				m_alerts.post_alert(listen_failed_alert(ep, msg.str()));
 			}
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			std::stringstream msg;
-			msg << "cannot listen on interface '";
-			print_endpoint(msg, ep) << "' " << ec.message();
-			(*m_logger) << msg.str() << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				std::stringstream msg;
+				msg << "cannot listen on interface '";
+				print_endpoint(msg, ep) << "' " << ec.message();
+				(*m_logger) << msg.str() << "\n";
+			}
+
 			return listen_socket_t();
 		}
 
@@ -896,10 +932,13 @@ namespace detail
 			m_alerts.post_alert(listen_succeeded_alert(ep, msg));
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << "listening on: " << ep
-			<< " external port: " << s.external_port << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << "listening on: " << ep
+				<< " external port: " << s.external_port << "\n";
+		}
+
 		return s;
 	}
 	
@@ -1018,11 +1057,15 @@ namespace detail
 		if (e)
 		{
 			tcp::endpoint ep = listener->local_endpoint(ec);
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			std::string msg = "error accepting connection on '"
-				+ boost::lexical_cast<std::string>(ep) + "' " + e.message();
-			(*m_logger) << msg << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				std::string msg = "error accepting connection on '"
+					+ boost::lexical_cast<std::string>(ep) + "' " + e.message();
+				(*m_logger) << msg << "\n";
+			}
+
 #ifdef _WIN32
 			// Windows sometimes generates this error. It seems to be
 			// non-fatal and we have to do another async_accept.
@@ -1056,16 +1099,21 @@ namespace detail
 
 		if (ec)
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_logger) << endp << " <== INCOMING CONNECTION FAILED, could "
-				"not retrieve remote endpoint " << ec.message() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << endp << " <== INCOMING CONNECTION FAILED, could "
+					"not retrieve remote endpoint " << ec.message() << "\n";
+			}
+
 			return;
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << endp << " <== INCOMING CONNECTION\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << endp << " <== INCOMING CONNECTION\n";
+		}
 
 		// local addresses do not count, since it's likely
 		// coming from our own client through local service discovery
@@ -1076,9 +1124,12 @@ namespace detail
 
 		if (m_ip_filter.access(endp.address()) & ip_filter::blocked)
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_logger) << "filtered blocked ip\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << "filtered blocked ip\n";
+			}
+
 			if (m_alerts.should_post(alert::info))
 			{
 				m_alerts.post_alert(peer_blocked_alert(endp.address()
@@ -1090,11 +1141,14 @@ namespace detail
 		// don't allow more connections than the max setting
 		if (num_connections() >= max_connections())
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_logger) << "number of connections limit exceeded (conns: "
-				<< num_connections() << ", limit: " << max_connections()
-				<< "), connection rejected\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << "number of connections limit exceeded (conns: "
+					<< num_connections() << ", limit: " << max_connections()
+					<< "), connection rejected\n";
+			}
+
 			return;
 		}
 
@@ -1102,10 +1156,13 @@ namespace detail
 		// if we don't reject the connection
 		if (m_torrents.empty())
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_logger) << " There are no torrents, disconnect\n";
-#endif
-		  	return;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << " There are no torrents, disconnect\n";
+			}
+
+			return;
 		}
 
 		bool has_active_torrent = false;
@@ -1120,10 +1177,13 @@ namespace detail
 		}
 		if (!has_active_torrent)
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_logger) << " There are no _active_ torrents, disconnect\n";
-#endif
-		  	return;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << " There are no _active_ torrents, disconnect\n";
+			}
+
+			return;
 		}
 
 		boost::intrusive_ptr<peer_connection> c(
@@ -1165,9 +1225,13 @@ namespace detail
 					, message));
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING)
-		(*(*p)->m_logger) << "*** CONNECTION FAILED " << message << "\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*(*p)->m_logger) << "*** CONNECTION FAILED " << message << "\n";
+		}
+
 		(*p)->set_failed();
 		(*p)->disconnect();
 	}
@@ -1217,9 +1281,12 @@ namespace detail
 
 		if (e)
 		{
-#if defined(TORRENT_LOGGING)
-			(*m_logger) << "*** SECOND TIMER FAILED " << e.message() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_logger) << "*** SECOND TIMER FAILED " << e.message() << "\n";
+			}
+
 			abort();
 			return;
 		}
@@ -1358,9 +1425,12 @@ namespace detail
 							, c.pid()
 							, "connection timed out"));
 				}
-#if defined(TORRENT_VERBOSE_LOGGING)
-				(*c.m_logger) << "*** CONNECTION TIMED OUT\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_session)
+				{
+					(*c.m_logger) << "*** CONNECTION TIMED OUT\n";
+				}
 
 				c.set_failed();
 				c.disconnect();
@@ -1637,9 +1707,12 @@ namespace detail
 			boost::thread::sleep(xt);
 		}
 		
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " locking mutex\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " locking mutex\n";
+		}
+
 		session_impl::mutex_t::scoped_lock l(m_mutex);
 
 #ifndef NDEBUG
@@ -1650,9 +1723,12 @@ namespace detail
 		}
 #endif
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " cleaning up torrents\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " cleaning up torrents\n";
+		}
+
 		m_torrents.clear();
 
 		TORRENT_ASSERT(m_torrents.empty());
@@ -1678,14 +1754,12 @@ namespace detail
 		return boost::weak_ptr<torrent>();
 	}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 	boost::shared_ptr<logger> session_impl::create_log(std::string const& name
 		, int instance, bool append)
 	{
 		// current options are file_logger, cout_logger and null_logger
 		return boost::shared_ptr<logger>(new logger(m_logpath, name + ".log", instance, append));
 	}
-#endif
 
 	std::vector<torrent_handle> session_impl::get_torrents()
 	{
@@ -1890,7 +1964,7 @@ namespace detail
 					req.listen_port = m_listen_sockets.front().external_port;
 				req.key = m_key;
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
+#if 1
 				boost::shared_ptr<tracker_logger> tl(new tracker_logger(*this));
 				m_tracker_loggers.push_back(tl);
 				m_tracker_manager.queue_request(m_strand, m_half_open, req
@@ -1971,10 +2045,12 @@ namespace detail
 		}
 #endif
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		m_logger = create_log("main_session", listen_port(), false);
-		(*m_logger) << time_now_string() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			m_logger = create_log("main_session", listen_port(), false);
+			(*m_logger) << time_now_string() << "\n";
+		}
 
 		return !m_listen_sockets.empty();
 	}
@@ -2005,10 +2081,13 @@ namespace detail
 		// don't add peers from lsd to private torrents
 		if (t->torrent_file().priv()) return;
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string()
-			<< ": added peer from local discovery: " << peer << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string()
+				<< ": added peer from local discovery: " << peer << "\n";
+		}
+
 		t->get_policy().peer_from_tracker(peer, peer_id(0), peer_info::lsd, 0);
 	}
 
@@ -2219,14 +2298,20 @@ namespace detail
 
 	session_impl::~session_impl()
 	{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << "\n\n *** shutting down session *** \n\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << "\n\n *** shutting down session *** \n\n";
+		}
+
 		abort();
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " waiting for main thread\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " waiting for main thread\n";
+		}
+
 		m_thread->join();
 
 		TORRENT_ASSERT(m_torrents.empty());
@@ -2251,21 +2336,30 @@ namespace detail
 			m_checker_impl.m_cond.notify_one();
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " waiting for checker thread\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " waiting for checker thread\n";
+		}
+
 		m_checker_thread->join();
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " waiting for disk io thread\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " waiting for disk io thread\n";
+		}
+
 		m_disk_thread.join();
 
 		TORRENT_ASSERT(m_torrents.empty());
 		TORRENT_ASSERT(m_connections.empty());
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_logger) << time_now_string() << " shutdown complete!\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_logger) << time_now_string() << " shutdown complete!\n";
+		}
 	}
 
 	void session_impl::set_max_uploads(int limit)

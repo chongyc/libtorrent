@@ -36,17 +36,40 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <fstream>
 
+//. 2008.06.21 by chongyc
+#include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/convenience.hpp>
+
+//. 2008.06.21 by chongyc
+std::string GetHomePath();
+
 namespace libtorrent { namespace dht
 {
+
+//. 2008.06.21 by chongyc
+namespace fs = boost::filesystem;
 
 class log
 {
 public:
-	log(char const* id, std::ostream& stream)
+	//m 2008.06.21 by chongyc
+	log(char const* id, fs::path const& filename, bool append = true)
 		: m_id(id)
 		, m_enabled(true)
-		, m_stream(stream)
 	{
+		try
+		{
+			fs::path logpath(GetHomePath());
+			fs::path dir(fs::complete(logpath / "log_dht"));
+
+			//. 2008.06.21 by chongyc
+			m_logpath = dir / filename;
+			m_append = append;
+		}
+		catch (std::exception& e)
+		{
+			std::cerr << "failed to create log '" << filename.string() << "': " << e.what() << std::endl;
+		}
 	}
 
 	char const* id() const
@@ -69,14 +92,40 @@ public:
 	template<class T>
 	log& operator<<(T const& x)
 	{
-		m_stream << x;
+		//. 2008.06.21 by chongyc
+		try
+		{
+			if (!m_stream.is_open())
+			{
+				fs::path dir = m_logpath.branch_path();
+				if (!fs::exists(dir))
+					fs::create_directories(dir);
+
+				m_stream.open(m_logpath.string().c_str()
+					, std::ios_base::out | (m_append ? std::ios_base::app : std::ios_base::out));
+
+				*this << "\n\n\n*** starting log ***\n";
+			}
+
+			m_stream << x;
+			m_stream.flush();
+		}
+		catch (std::exception& e)
+		{
+			std::cerr << "failed to write log '" << m_logpath.string() << "': " << e.what() << std::endl;
+		}
+
 		return *this;
 	}
 
 private:
 	char const* m_id;
 	bool m_enabled;
-	std::ostream& m_stream;
+	std::ofstream m_stream;
+
+	//. 2008.06.21 by chongyc
+	fs::path m_logpath;
+	bool m_append;
 };
 
 class log_event
@@ -133,8 +182,7 @@ public:
 #define TORRENT_DEFINE_LOG(name) \
 	libtorrent::dht::log& name ## _log() \
 	{ \
-		static std::ofstream log_file("dht.log", std::ios::app); \
-		static libtorrent::dht::log instance(#name, log_file); \
+		static libtorrent::dht::log instance(#name, "dht.log", true); \
 		return instance; \
 	}
 

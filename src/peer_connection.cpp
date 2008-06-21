@@ -127,11 +127,14 @@ namespace libtorrent
 #ifndef TORRENT_DISABLE_RESOLVE_COUNTRIES
 		std::fill(m_country, m_country + 2, 0);
 #endif
-#ifdef TORRENT_VERBOSE_LOGGING
+
 		m_logger = m_ses.create_log(m_remote.address().to_string() + "_"
 			+ boost::lexical_cast<std::string>(m_remote.port()), m_ses.listen_port());
-		(*m_logger) << "*** OUTGOING CONNECTION\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << "*** OUTGOING CONNECTION\n";
+		}
 
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
@@ -210,13 +213,16 @@ namespace libtorrent
 #endif
 		m_remote = m_socket->remote_endpoint();
 
-#ifdef TORRENT_VERBOSE_LOGGING
 		error_code ec;
 		TORRENT_ASSERT(m_socket->remote_endpoint(ec) == remote());
 		m_logger = m_ses.create_log(remote().address().to_string(ec) + "_"
 			+ boost::lexical_cast<std::string>(remote().port()), m_ses.listen_port());
-		(*m_logger) << "*** INCOMING CONNECTION\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << "*** INCOMING CONNECTION\n";
+		}
 		
 		std::fill(m_peer_id.begin(), m_peer_id.end(), 0);
 	}
@@ -274,10 +280,13 @@ namespace libtorrent
 		{
 			for (int i = 0; i < num_pieces; ++i)
 			{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " ==> ALLOWED_FAST [ " << i << " ]\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_peer_connection)
+				{
+					(*m_logger) << time_now_string()
+						<< " ==> ALLOWED_FAST [ " << i << " ]\n";
+				}
+
 				write_allow_fast(i);
 				m_accept_fast.insert(i);
 			}
@@ -307,10 +316,13 @@ namespace libtorrent
 				int piece = detail::read_uint32(p) % num_pieces;
 				if (m_accept_fast.find(piece) == m_accept_fast.end())
 				{
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << time_now_string()
-						<< " ==> ALLOWED_FAST [ " << piece << " ]\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_peer_connection)
+					{
+						(*m_logger) << time_now_string()
+							<< " ==> ALLOWED_FAST [ " << piece << " ]\n";
+					}
+
 					write_allow_fast(piece);
 					m_accept_fast.insert(piece);
 					if (int(m_accept_fast.size()) >= num_allowed_pieces
@@ -338,9 +350,12 @@ namespace libtorrent
 		int num_pieces = std::count(m_have_piece.begin(), m_have_piece.end(), true);
 		if (num_pieces == int(m_have_piece.size()))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " *** THIS IS A SEED ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << " *** THIS IS A SEED ***\n";
+			}
+
 			// if this is a web seed. we don't have a peer_info struct
 			if (m_peer_info) m_peer_info->seed = true;
 			// if we're a seed too, disconnect
@@ -382,13 +397,16 @@ namespace libtorrent
 		TORRENT_ASSERT(!m_in_constructor);
 		TORRENT_ASSERT(m_disconnecting);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		if (m_logger)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
 		{
-			(*m_logger) << time_now_string()
-				<< " *** CONNECTION CLOSED\n";
+			if (m_logger)
+			{
+				(*m_logger) << time_now_string()
+					<< " *** CONNECTION CLOSED\n";
+			}
 		}
-#endif
+
 #ifndef NDEBUG
 		if (m_peer_info)
 			TORRENT_ASSERT(m_peer_info->connection == 0);
@@ -422,10 +440,13 @@ namespace libtorrent
 		if (!m_ses.settings().send_redundant_have
 			&& has_piece(index)) return;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ==> HAVE    [ piece: " << index << "]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ==> HAVE    [ piece: " << index << "]\n";
+		}
+
 		write_have(index);
 #ifndef NDEBUG
 		boost::shared_ptr<torrent> t = m_torrent.lock();
@@ -561,25 +582,32 @@ namespace libtorrent
 
 		if (t && t->is_aborted())
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " *** the torrent has been aborted\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << " *** the torrent has been aborted\n";
+			}
+
 			t.reset();
 		}
 
 		if (!t)
 		{
 			// we couldn't find the torrent!
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " *** couldn't find a torrent with the given info_hash: " << ih << "\n";
-			(*m_logger) << " torrents:\n";
-			session_impl::torrent_map const& torrents = m_ses.m_torrents;
-			for (session_impl::torrent_map::const_iterator i = torrents.begin()
-				, end(torrents.end()); i != end; ++i)
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
 			{
-				(*m_logger) << "   " << i->second->torrent_file().info_hash() << "\n";
+				(*m_logger) << " *** couldn't find a torrent with the given info_hash: " << ih << "\n";
+				(*m_logger) << " torrents:\n";
+				session_impl::torrent_map const& torrents = m_ses.m_torrents;
+				for (session_impl::torrent_map::const_iterator i = torrents.begin()
+					, end(torrents.end()); i != end; ++i)
+				{
+					(*m_logger) << "   " << i->second->torrent_file().info_hash() << "\n";
+				}
 			}
-#endif
+
 			throw std::runtime_error("got info-hash that is not in our session");
 		}
 
@@ -587,9 +615,13 @@ namespace libtorrent
 		{
 			// paused torrents will not accept
 			// incoming connections
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " rejected connection to paused torrent\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << " rejected connection to paused torrent\n";
+			}
+
 			throw std::runtime_error("connection rejected by paused torrent");
 		}
 
@@ -627,9 +659,11 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== KEEPALIVE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== KEEPALIVE\n";
+		}
 	}
 
 	// -----------------------------
@@ -651,9 +685,12 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== CHOKE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== CHOKE\n";
+		}
+
 		m_peer_choked = true;
 		t->get_policy().choked(*this);
 		
@@ -707,10 +744,12 @@ namespace libtorrent
 			m_download_queue.begin(), m_download_queue.end()
 			, bind(match_request, boost::cref(r), _1, t->block_size()));
 	
-#ifdef TORRENT_VERBOSE_LOGGING
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
 			(*m_logger) << time_now_string()
 				<< " <== REJECT_PIECE [ piece: " << r.piece << " | s: " << r.start << " | l: " << r.length << " ]\n";
-#endif
+		}
 
 		piece_block b(-1, 0);
 		if (i != m_download_queue.end())
@@ -729,13 +768,16 @@ namespace libtorrent
 				p.abort_download(b);
 			}
 		}
-#ifdef TORRENT_VERBOSE_LOGGING
 		else
 		{
-			(*m_logger) << time_now_string()
-				<< " *** PIECE NOT IN REQUEST QUEUE\n";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " *** PIECE NOT IN REQUEST QUEUE\n";
+			}
 		}
-#endif
+
 		if (has_peer_choked())
 		{
 			// if we're choked and we got a rejection of
@@ -771,10 +813,13 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " <== SUGGEST_PIECE [ piece: " << index << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " <== SUGGEST_PIECE [ piece: " << index << " ]\n";
+		}
+
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		if (!t) return;
 
@@ -792,10 +837,12 @@ namespace libtorrent
 			m_suggested_pieces.erase(m_suggested_pieces.begin());
 		m_suggested_pieces.push_back(index);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ** SUGGEST_PIECE [ piece: " << index << " added to set: " << m_suggested_pieces.size() << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ** SUGGEST_PIECE [ piece: " << index << " added to set: " << m_suggested_pieces.size() << " ]\n";
+		}
 	}
 
 	// -----------------------------
@@ -817,9 +864,12 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== UNCHOKE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== UNCHOKE\n";
+		}
+
 		m_peer_choked = false;
 		t->get_policy().unchoked(*this);
 	}
@@ -843,9 +893,12 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== INTERESTED\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== INTERESTED\n";
+		}
+
 		m_peer_interested = true;
 		t->get_policy().interested(*this);
 	}
@@ -868,9 +921,11 @@ namespace libtorrent
 
 		m_became_uninterested = time_now();
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== NOT_INTERESTED\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== NOT_INTERESTED\n";
+		}
 
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
@@ -898,10 +953,12 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " <== HAVE    [ piece: " << index << "]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " <== HAVE    [ piece: " << index << "]\n";
+		}
 
 		// if we got an invalid message, abort
 		if (index >= (int)m_have_piece.size() || index < 0)
@@ -910,9 +967,11 @@ namespace libtorrent
 
 		if (m_have_piece[index])
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "   got redundant HAVE message for index: " << index << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "   got redundant HAVE message for index: " << index << "\n";
+			}
 		}
 		else
 		{
@@ -975,16 +1034,18 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== BITFIELD ";
-
-		for (int i = 0; i < int(bitfield.size()); ++i)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
 		{
-			if (bitfield[i]) (*m_logger) << "1";
-			else (*m_logger) << "0";
+			(*m_logger) << time_now_string() << " <== BITFIELD ";
+
+			for (int i = 0; i < int(bitfield.size()); ++i)
+			{
+				if (bitfield[i]) (*m_logger) << "1";
+				else (*m_logger) << "0";
+			}
+			(*m_logger) << "\n";
 		}
-		(*m_logger) << "\n";
-#endif
 
 		// if we don't have the metedata, we cannot
 		// verify the bitfield size
@@ -1013,9 +1074,12 @@ namespace libtorrent
 		int num_pieces = std::count(bitfield.begin(), bitfield.end(), true);
 		if (num_pieces == int(m_have_piece.size()))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " *** THIS IS A SEED ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << " *** THIS IS A SEED ***\n";
+			}
+
 			// if this is a web seed. we don't have a peer_info struct
 			if (m_peer_info) m_peer_info->seed = true;
 			// if we're a seed too, disconnect
@@ -1103,16 +1167,20 @@ namespace libtorrent
 		{
 			// if we don't have valid metadata yet,
 			// we shouldn't get a request
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " <== UNEXPECTED_REQUEST [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " | "
-				"i: " << m_peer_interested << " | "
-				"t: " << t->torrent_file().piece_size(r.piece) << " | "
-				"n: " << t->torrent_file().num_pieces() << " ]\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " <== UNEXPECTED_REQUEST [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " | "
+					"i: " << m_peer_interested << " | "
+					"t: " << t->torrent_file().piece_size(r.piece) << " | "
+					"n: " << t->torrent_file().num_pieces() << " ]\n";
+			}
+
 			write_reject_request(r);
 			return;
 		}
@@ -1123,28 +1191,32 @@ namespace libtorrent
 			// memory consumption.
 			// ignore requests if the client
 			// is making too many of them.
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " <== TOO MANY REQUESTS [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " | "
-				"i: " << m_peer_interested << " | "
-				"t: " << t->torrent_file().piece_size(r.piece) << " | "
-				"n: " << t->torrent_file().num_pieces() << " ]\n";
 
-			(*m_logger) << time_now_string()
-				<< " ==> REJECT_PIECE [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " ]\n";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " <== TOO MANY REQUESTS [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " | "
+					"i: " << m_peer_interested << " | "
+					"t: " << t->torrent_file().piece_size(r.piece) << " | "
+					"n: " << t->torrent_file().num_pieces() << " ]\n";
 
-			(*m_logger) << time_now_string()
-				<< " ==> REJECT_PIECE [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " ]\n";
-#endif
+				(*m_logger) << time_now_string()
+					<< " ==> REJECT_PIECE [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " ]\n";
+
+				(*m_logger) << time_now_string()
+					<< " ==> REJECT_PIECE [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " ]\n";
+			}
+
 			write_reject_request(r);
 			return;
 		}
@@ -1162,24 +1234,31 @@ namespace libtorrent
 			&& m_peer_interested
 			&& r.length <= t->block_size())
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " <== REQUEST [ piece: " << r.piece << " | s: " << r.start << " | l: " << r.length << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " <== REQUEST [ piece: " << r.piece << " | s: " << r.start << " | l: " << r.length << " ]\n";
+			}
+
 			// if we have choked the client
 			// ignore the request
 			if (m_choked && m_accept_fast.find(r.piece) == m_accept_fast.end())
 			{
 				write_reject_request(r);
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << time_now_string()
-					<< " *** REJECTING REQUEST [ peer choked and piece not in allowed fast set ]\n";
-				(*m_logger) << time_now_string()
-					<< " ==> REJECT_PIECE [ "
-					"piece: " << r.piece << " | "
-					"s: " << r.start << " | "
-					"l: " << r.length << " ]\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_peer_connection)
+				{
+					(*m_logger) << time_now_string()
+						<< " *** REJECTING REQUEST [ peer choked and piece not in allowed fast set ]\n";
+					(*m_logger) << time_now_string()
+						<< " ==> REJECT_PIECE [ "
+						"piece: " << r.piece << " | "
+						"s: " << r.start << " | "
+						"l: " << r.length << " ]\n";
+				}
+
 			}
 			else
 			{
@@ -1190,24 +1269,26 @@ namespace libtorrent
 		}
 		else
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " <== INVALID_REQUEST [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " | "
-				"i: " << m_peer_interested << " | "
-				"t: " << t->torrent_file().piece_size(r.piece) << " | "
-				"n: " << t->torrent_file().num_pieces() << " | "
-				"h: " << t->have_piece(r.piece) << " | "
-				"block_limit: " << t->block_size() << " ]\n";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " <== INVALID_REQUEST [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " | "
+					"i: " << m_peer_interested << " | "
+					"t: " << t->torrent_file().piece_size(r.piece) << " | "
+					"n: " << t->torrent_file().num_pieces() << " | "
+					"h: " << t->have_piece(r.piece) << " | "
+					"block_limit: " << t->block_size() << " ]\n";
 
-			(*m_logger) << time_now_string()
-				<< " ==> REJECT_PIECE [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " ]\n";
-#endif
+				(*m_logger) << time_now_string()
+					<< " ==> REJECT_PIECE [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " ]\n";
+			}
 
 			write_reject_request(r);
 			++m_num_invalid_requests;
@@ -1284,23 +1365,28 @@ namespace libtorrent
 		t->check_invariant();
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " <== PIECE   [ piece: " << p.piece << " | "
-			"s: " << p.start << " | "
-			"l: " << p.length << " | "
-			"ds: " << statistics().download_rate() << " | "
-			"qs: " << m_desired_queue_size << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " <== PIECE   [ piece: " << p.piece << " | "
+				"s: " << p.start << " | "
+				"l: " << p.length << " | "
+				"ds: " << statistics().download_rate() << " | "
+				"qs: " << m_desired_queue_size << " ]\n";
+		}
 
 		if (!verify_piece(p))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " <== INVALID_PIECE [ piece: " << p.piece << " | "
-				"start: " << p.start << " | "
-				"length: " << p.length << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " <== INVALID_PIECE [ piece: " << p.piece << " | "
+					"start: " << p.start << " | "
+					"length: " << p.length << " ]\n";
+			}
+
 			throw protocol_error("got invalid piece packet");
 		}
 
@@ -1334,11 +1420,14 @@ namespace libtorrent
 				for (std::deque<piece_block>::iterator i = m_download_queue.begin();
 					i != b; ++i)
 				{
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << time_now_string()
-						<< " *** SKIPPED_PIECE [ piece: " << i->piece_index << " | "
-						"b: " << i->block_index << " ] ***\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_peer_connection)
+					{
+						(*m_logger) << time_now_string()
+							<< " *** SKIPPED_PIECE [ piece: " << i->piece_index << " | "
+							"b: " << i->block_index << " ] ***\n";
+					}
+
 					// since this piece was skipped, clear it and allow it to
 					// be requested from other peers
 					// TODO: send cancel?
@@ -1363,10 +1452,14 @@ namespace libtorrent
 						, m_peer_id
 						, "got a block that was not in the request queue"));
 			}
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " *** The block we just got was not in the "
-				"request queue ***\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << " *** The block we just got was not in the "
+					"request queue ***\n";
+			}
+
 			t->received_redundant_data(p.length);
 			request_a_block(*t, *this);
 			send_block_requests();
@@ -1415,10 +1508,13 @@ namespace libtorrent
 		m_outstanding_writing_bytes -= p.length;
 		TORRENT_ASSERT(m_outstanding_writing_bytes >= 0);
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_ses.m_logger) << time_now_string() << " *** DISK_WRITE_COMPLETE [ p: "
-			<< p.piece << " o: " << p.start << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_ses.m_logger) << time_now_string() << " *** DISK_WRITE_COMPLETE [ p: "
+				<< p.piece << " o: " << p.start << " ]\n";
+		}
+
 		// in case the outstanding bytes just dropped down
 		// to allow to receive more data
 		setup_receive();
@@ -1506,10 +1602,12 @@ namespace libtorrent
 		}
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " <== CANCEL  [ piece: " << r.piece << " | s: " << r.start << " | l: " << r.length << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " <== CANCEL  [ piece: " << r.piece << " | s: " << r.start << " | l: " << r.length << " ]\n";
+		}
 
 		std::deque<peer_request>::iterator i
 			= std::find(m_requests.begin(), m_requests.end(), r);
@@ -1517,20 +1615,27 @@ namespace libtorrent
 		if (i != m_requests.end())
 		{
 			m_requests.erase(i);
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " ==> REJECT_PIECE [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " ]\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " ==> REJECT_PIECE [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " ]\n";
+			}
+
 			write_reject_request(r);
 		}
 		else
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** GOT CANCEL NOT IN THE QUEUE\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** GOT CANCEL NOT IN THE QUEUE\n";
+			}
+
 		}
 	}
 
@@ -1542,10 +1647,13 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " <== DHT_PORT [ p: " << listen_port << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " <== DHT_PORT [ p: " << listen_port << " ]\n";
+		}
+
 #ifndef TORRENT_DISABLE_DHT
 		m_ses.add_dht_node(udp::endpoint(
 			m_remote.address(), listen_port));
@@ -1563,9 +1671,11 @@ namespace libtorrent
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== HAVE_ALL\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== HAVE_ALL\n";
+		}
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (extension_list_t::iterator i = m_extensions.begin()
@@ -1591,9 +1701,11 @@ namespace libtorrent
 			return;
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " *** THIS IS A SEED ***\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << " *** THIS IS A SEED ***\n";
+		}
 
 		// if we're a seed too, disconnect
 		if (t->is_finished())
@@ -1619,9 +1731,11 @@ namespace libtorrent
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== HAVE_NONE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== HAVE_NONE\n";
+		}
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (extension_list_t::iterator i = m_extensions.begin()
@@ -1646,9 +1760,11 @@ namespace libtorrent
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== ALLOWED_FAST [ " << index << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " <== ALLOWED_FAST [ " << index << " ]\n";
+		}
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (extension_list_t::iterator i = m_extensions.begin()
@@ -1660,10 +1776,13 @@ namespace libtorrent
 
 		if (index < 0 || index >= int(m_have_piece.size()))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " <== INVALID_ALLOWED_FAST [ " << index << " | s: "
-				<< int(m_have_piece.size()) << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " <== INVALID_ALLOWED_FAST [ " << index << " | s: "
+					<< int(m_have_piece.size()) << " ]\n";
+			}
+
 			return;
 		}
 
@@ -1798,11 +1917,14 @@ namespace libtorrent
 		r.start = block_offset;
 		r.length = block_size;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
 				<< " ==> CANCEL  [ piece: " << block.piece_index << " | s: "
 				<< block_offset << " | l: " << block_size << " | " << block.block_index << " ]\n";
-#endif
+		}
+
 		write_cancel(r);
 	}
 
@@ -1816,9 +1938,12 @@ namespace libtorrent
 		write_choke();
 		m_choked = true;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> CHOKE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> CHOKE\n";
+		}
+
 #ifndef NDEBUG
 		m_last_choke = time_now();
 #endif
@@ -1828,18 +1953,21 @@ namespace libtorrent
 		std::for_each(m_requests.begin(), m_requests.end()
 			, bind(&peer_connection::write_reject_request, this, _1));
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		for (std::deque<peer_request>::iterator i = m_requests.begin()
-			, end(m_requests.end()); i != end; ++i)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
 		{
-			peer_request const& r = *i;
-			(*m_logger) << time_now_string()
-				<< " ==> REJECT_PIECE [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " ]\n";
+			for (std::deque<peer_request>::iterator i = m_requests.begin()
+				, end(m_requests.end()); i != end; ++i)
+			{
+				peer_request const& r = *i;
+				(*m_logger) << time_now_string()
+					<< " ==> REJECT_PIECE [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " ]\n";
+			}
 		}
-#endif
+
 		m_requests.clear();
 	}
 
@@ -1852,9 +1980,12 @@ namespace libtorrent
 		write_unchoke();
 		m_choked = false;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> UNCHOKE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> UNCHOKE\n";
+		}
+
 	}
 
 	void peer_connection::send_interested()
@@ -1865,9 +1996,12 @@ namespace libtorrent
 		write_interested();
 		m_interesting = true;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> INTERESTED\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> INTERESTED\n";
+		}
+
 	}
 
 	void peer_connection::send_not_interested()
@@ -1880,9 +2014,12 @@ namespace libtorrent
 
 		m_became_uninteresting = time_now();
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> NOT_INTERESTED\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> NOT_INTERESTED\n";
+		}
+
 	}
 
 	void peer_connection::send_block_requests()
@@ -1913,12 +2050,14 @@ namespace libtorrent
 			m_request_queue.pop_front();
 			m_download_queue.push_back(block);
 /*
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " *** REQUEST-QUEUE** [ "
-				"piece: " << block.piece_index << " | "
-				"block: " << block.block_index << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+							<< " *** REQUEST-QUEUE** [ "
+							"piece: " << block.piece_index << " | "
+							"block: " << block.block_index << " ]\n";
+			}
 */			
 			// if we are requesting large blocks, merge the smaller
 			// blocks that are in the same piece into larger requests
@@ -1938,12 +2077,14 @@ namespace libtorrent
 					m_request_queue.pop_front();
 					m_download_queue.push_back(block);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << time_now_string()
-						<< " *** MERGING REQUEST ** [ "
-						"piece: " << block.piece_index << " | "
-						"block: " << block.block_index << " ]\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_peer_connection)
+					{
+						(*m_logger) << time_now_string()
+							<< " *** MERGING REQUEST ** [ "
+							"piece: " << block.piece_index << " | "
+							"block: " << block.block_index << " ]\n";
+					}
 
 					block_offset = block.block_index * t->block_size();
 					block_size = (std::min)(t->torrent_file().piece_size(
@@ -1974,16 +2115,18 @@ namespace libtorrent
 			m_last_request = time_now();
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " ==> REQUEST [ "
-				"piece: " << r.piece << " | "
-				"s: " << r.start << " | "
-				"l: " << r.length << " | "
-				"ds: " << statistics().download_rate() << " B/s | "
-				"qs: " << m_desired_queue_size << " "
-				"blk: " << (m_request_large_blocks?"large":"single") << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " ==> REQUEST [ "
+					"piece: " << r.piece << " | "
+					"s: " << r.start << " | "
+					"l: " << r.length << " | "
+					"ds: " << statistics().download_rate() << " B/s | "
+					"qs: " << m_desired_queue_size << " "
+					"blk: " << (m_request_large_blocks?"large":"single") << " ]\n";
+			}
 		}
 		m_last_piece = time_now();
 	}
@@ -1996,10 +2139,13 @@ namespace libtorrent
 
 	void peer_connection::timed_out()
 	{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_ses.m_logger) << "CONNECTION TIMED OUT: " << m_remote.address().to_string()
-			<< "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_ses.m_logger) << "CONNECTION TIMED OUT: " << m_remote.address().to_string()
+				<< "\n";
+		}
+
 		m_ses.connection_failed(self(), m_remote, "timed out");
 	}
 
@@ -2269,11 +2415,14 @@ namespace libtorrent
 			// requested (this has been observed by BitComet)
 			// in this case we'll clear our download queue and
 			// re-request the blocks.
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string()
-				<< " *** PIECE_REQUESTS TIMED OUT [ " << (int)m_download_queue.size()
-				<< " " << total_seconds(now - m_last_piece) << "] ***\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string()
+					<< " *** PIECE_REQUESTS TIMED OUT [ " << (int)m_download_queue.size()
+					<< " " << total_seconds(now - m_last_piece) << "] ***\n";
+			}
 
 			if (t->is_seed())
 			{
@@ -2289,12 +2438,16 @@ namespace libtorrent
 					, end(dl.end()); i != end; ++i)
 				{
 					piece_block const& r = m_download_queue.back();
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << time_now_string()
-						<< " ==> CANCEL  [ piece: " << r.piece_index
-						<< " | block: " << r.block_index
-						<< " ]\n";
-#endif
+
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_peer_connection)
+					{
+						(*m_logger) << time_now_string()
+							<< " ==> CANCEL  [ piece: " << r.piece_index
+							<< " | block: " << r.block_index
+							<< " ]\n";
+					}
+
 					write_cancel(t->to_req(r));
 				}
 				while (!m_request_queue.empty())
@@ -2369,9 +2522,12 @@ namespace libtorrent
 		}
 		catch (std::exception& e)
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "**ERROR**: " << e.what() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "**ERROR**: " << e.what() << "\n";
+			}
+
 			m_ses.connection_failed(self(), remote(), e.what());
 		}
 	}
@@ -2440,11 +2596,13 @@ namespace libtorrent
 			return;
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ==> PIECE   [ piece: " << r.piece << " | s: " << r.start
-			<< " | l: " << r.length << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ==> PIECE   [ piece: " << r.piece << " | s: " << r.start
+				<< " | l: " << r.length << " ]\n";
+		}
 
 		write_piece(r, j.buffer);
 		setup_send();
@@ -2454,9 +2612,11 @@ namespace libtorrent
 	{
 		session_impl::mutex_t::scoped_lock l(m_ses.m_mutex);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << "bandwidth [ " << channel << " ] + " << amount << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << "bandwidth [ " << channel << " ] + " << amount << "\n";
+		}
 
 		m_bandwidth_limit[channel].assign(amount);
 		if (channel == upload_channel)
@@ -2510,9 +2670,11 @@ namespace libtorrent
 			TORRENT_ASSERT(t);
 			if (m_bandwidth_limit[upload_channel].max_assignable() > 0)
 			{
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << time_now_string() << " *** REQUEST_BANDWIDTH [ upload ]\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_peer_connection)
+				{
+					(*m_logger) << time_now_string() << " *** REQUEST_BANDWIDTH [ upload ]\n";
+				}
 
 				TORRENT_ASSERT(!m_writing);
 				// peers that we are not interested in are non-prioritized
@@ -2525,14 +2687,17 @@ namespace libtorrent
 
 		if (!can_write())
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** CANNOT WRITE ["
-				" quota: " << m_bandwidth_limit[download_channel].quota_left() <<
-				" ignore: " << (m_ignore_bandwidth_limits?"yes":"no") <<
-				" buf: " << m_send_buffer.size() <<
-				" connecting: " << (m_connecting?"yes":"no") <<
-				" ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** CANNOT WRITE ["
+					" quota: " << m_bandwidth_limit[download_channel].quota_left() <<
+					" ignore: " << (m_ignore_bandwidth_limits?"yes":"no") <<
+					" buf: " << m_send_buffer.size() <<
+					" connecting: " << (m_connecting?"yes":"no") <<
+					" ]\n";
+			}
+
 			return;
 		}
 
@@ -2548,9 +2713,12 @@ namespace libtorrent
 
 			TORRENT_ASSERT(amount_to_send > 0);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** ASYNC_WRITE [ bytes: " << amount_to_send << " ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** ASYNC_WRITE [ bytes: " << amount_to_send << " ]\n";
+			}
+
 			std::list<asio::const_buffer> const& vec = m_send_buffer.build_iovec(amount_to_send);
 			m_socket->async_write_some(vec, bind(&peer_connection::on_send_data, self(), _1, _2));
 
@@ -2564,9 +2732,12 @@ namespace libtorrent
 
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " *** SETUP_RECEIVE [ reading: " << (m_reading?"yes":"no") << "]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " *** SETUP_RECEIVE [ reading: " << (m_reading?"yes":"no") << "]\n";
+		}
+
 		if (m_reading) return;
 
 		shared_ptr<torrent> t = m_torrent.lock();
@@ -2578,9 +2749,12 @@ namespace libtorrent
 		{
 			if (m_bandwidth_limit[download_channel].max_assignable() > 0)
 			{
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << time_now_string() << " *** REQUEST_BANDWIDTH [ download ]\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_peer_connection)
+				{
+					(*m_logger) << time_now_string() << " *** REQUEST_BANDWIDTH [ download ]\n";
+				}
+
 				m_reading = true;
 				t->request_bandwidth(download_channel, self(), m_priority);
 			}
@@ -2589,14 +2763,17 @@ namespace libtorrent
 		
 		if (!can_read())
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** CANNOT READ ["
-				" quota: " << m_bandwidth_limit[download_channel].quota_left() <<
-				" ignore: " << (m_ignore_bandwidth_limits?"yes":"no") <<
-				" outstanding: " << m_outstanding_writing_bytes <<
-				" outstanding-limit: " << m_ses.settings().max_outstanding_disk_bytes_per_connection <<
-				" ]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** CANNOT READ ["
+					" quota: " << m_bandwidth_limit[download_channel].quota_left() <<
+					" ignore: " << (m_ignore_bandwidth_limits?"yes":"no") <<
+					" outstanding: " << m_outstanding_writing_bytes <<
+					" outstanding-limit: " << m_ses.settings().max_outstanding_disk_bytes_per_connection <<
+					" ]\n";
+			}
+
 			return;
 		}
 
@@ -2612,9 +2789,13 @@ namespace libtorrent
 		TORRENT_ASSERT(m_packet_size > 0);
 
 		TORRENT_ASSERT(can_read());
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " *** ASYNC_READ [ max: " << max_receive << " bytes ]\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " *** ASYNC_READ [ max: " << max_receive << " bytes ]\n";
+		}
+
 		m_socket->async_read_some(asio::buffer(&m_recv_buffer[m_recv_pos]
 			, max_receive), bind(&peer_connection::on_receive_data, self(), _1, _2));
 		m_reading = true;
@@ -2721,9 +2902,12 @@ namespace libtorrent
 
 		if (error)
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "**ERROR**: " << error.message() << "[in peer_connection::on_receive_data]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "**ERROR**: " << error.message() << "[in peer_connection::on_receive_data]\n";
+			}
+
 			set_failed();
 			on_receive(error, bytes_transferred);
 			throw std::runtime_error(error.message());
@@ -2731,9 +2915,12 @@ namespace libtorrent
 
 		do
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "read " << bytes_transferred << " bytes\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "read " << bytes_transferred << " bytes\n";
+			}
+
 			// correct the dl quota usage, if not all of the buffer was actually read
 			if (!m_ignore_bandwidth_limits)
 				m_bandwidth_limit[download_channel].use_quota(bytes_transferred);
@@ -2829,9 +3016,11 @@ namespace libtorrent
 			&& m_outstanding_writing_bytes <
 				m_ses.settings().max_outstanding_disk_bytes_per_connection;
 		
-#if defined(TORRENT_VERBOSE_LOGGING)
-		(*m_logger) << time_now_string() << " *** can_read() " << (ret?"yes":"no") << " reading: " << m_reading << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " *** can_read() " << (ret?"yes":"no") << " reading: " << m_reading << "\n";
+		}
 		
 		return ret;
 	}
@@ -2840,10 +3029,12 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_ses.m_logger) << "CONNECTING: " << m_remote.address().to_string()
-			<< ":" << m_remote.port() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_ses.m_logger) << "CONNECTING: " << m_remote.address().to_string()
+				<< ":" << m_remote.port() << "\n";
+		}
 
 		m_connection_ticket = ticket;
 		boost::shared_ptr<torrent> t = m_torrent.lock();
@@ -2887,10 +3078,13 @@ namespace libtorrent
 
 		if (e)
 		{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			(*m_ses.m_logger) << "CONNECTION FAILED: " << m_remote.address().to_string()
-				<< ": " << e.message() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_session)
+			{
+				(*m_ses.m_logger) << "CONNECTION FAILED: " << m_remote.address().to_string()
+					<< ": " << e.message() << "\n";
+			}
+
 			set_failed();
 			m_ses.connection_failed(self(), m_remote, e.message().c_str());
 			return;
@@ -2901,9 +3095,11 @@ namespace libtorrent
 
 		// this means the connection just succeeded
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		(*m_ses.m_logger) << "COMPLETED: " << m_remote.address().to_string() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_session)
+		{
+			(*m_ses.m_logger) << "COMPLETED: " << m_remote.address().to_string() << "\n";
+		}
 
 		on_connected();
 		setup_send();
@@ -2943,15 +3139,20 @@ namespace libtorrent
 		if (!m_ignore_bandwidth_limits)
 			m_bandwidth_limit[upload_channel].use_quota(bytes_transferred);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << "wrote " << bytes_transferred << " bytes\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << "wrote " << bytes_transferred << " bytes\n";
+		}
 
 		if (error)
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "**ERROR**: " << error.message() << " [in peer_connection::on_send_data]\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << "**ERROR**: " << error.message() << " [in peer_connection::on_send_data]\n";
+			}
+
 			set_failed();
 			throw std::runtime_error(error.message());
 		}
@@ -3113,20 +3314,26 @@ namespace libtorrent
 		d = now - m_last_receive;
 		if (d > seconds(m_timeout))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** LAST ACTIVITY [ "
-				<< total_seconds(d) << " seconds ago ] ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** LAST ACTIVITY [ "
+					<< total_seconds(d) << " seconds ago ] ***\n";
+			}
+
 			return true;
 		}
 
 		// do not stall waiting for a handshake
 		if (in_handshake() && d > seconds(m_ses.settings().handshake_timeout))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** NO HANDSHAKE [ waited "
-				<< total_seconds(d) << " seconds ] ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** NO HANDSHAKE [ waited "
+					<< total_seconds(d) << " seconds ] ***\n";
+			}
+
 			return true;
 		}
 
@@ -3141,10 +3348,13 @@ namespace libtorrent
 			&& t && t->is_finished()
 			&& d > seconds(20))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** NO REQUEST [ t: "
-				<< total_seconds(d) << " ] ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** NO REQUEST [ t: "
+					<< total_seconds(d) << " ] ***\n";
+			}
+
 			return true;
 		}
 
@@ -3172,11 +3382,14 @@ namespace libtorrent
 			&& (m_ses.num_connections() >= m_ses.max_connections()
 			|| (t && t->num_peers() >= t->max_connections())))
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " *** MUTUAL NO INTEREST [ "
-				"t1: " << total_seconds(d1) << " | "
-				"t2: " << total_seconds(d2) << " ] ***\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_peer_connection)
+			{
+				(*m_logger) << time_now_string() << " *** MUTUAL NO INTEREST [ "
+					"t1: " << total_seconds(d1) << " | "
+					"t2: " << total_seconds(d2) << " ] ***\n";
+			}
+
 			return true;
 		}
 
@@ -3218,9 +3431,11 @@ namespace libtorrent
 		// alive
 		if (m_writing) return;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> KEEPALIVE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_peer_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> KEEPALIVE\n";
+		}
 
 		m_last_sent = time_now();
 		write_keepalive();

@@ -40,10 +40,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/function.hpp>
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-#include <fstream>
-#endif
-
 namespace libtorrent
 {
 
@@ -141,11 +137,8 @@ private:
 	
 	bool m_disabled;
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	//. 2008.05.20 by chongyc
 	libtorrent::logger	m_log;
-	//std::ofstream m_log;
-#endif
 };
 
 }

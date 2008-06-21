@@ -52,6 +52,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <libtorrent/kademlia/node.hpp>
 #include <libtorrent/kademlia/observer.hpp>
 #include <libtorrent/hasher.hpp>
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 #include <fstream>
 
@@ -60,6 +62,8 @@ using boost::bind;
 
 namespace libtorrent { namespace dht
 {
+	//. 2008.06.21 by chongyc
+	using namespace libtorrent;
 
 namespace io = libtorrent::detail;
 namespace mpl = boost::mpl;
@@ -123,7 +127,11 @@ rpc_manager::~rpc_manager()
 {
 	m_destructing = true;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(rpc) << "Destructing";
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(rpc) << "Destructing";
+	}
 #endif
 	std::for_each(m_aborted_transactions.begin(), m_aborted_transactions.end()
 		, bind(&observer::abort, _1));
@@ -166,8 +174,12 @@ bool rpc_manager::incoming(msg const& m)
 		if (m.transaction_id.size() < 2)
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(rpc) << "Reply with invalid transaction id size: " 
-				<< m.transaction_id.size() << " from " << m.addr;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(rpc) << "Reply with invalid transaction id size: " 
+					<< m.transaction_id.size() << " from " << m.addr;
+			}
 #endif
 			msg reply;
 			reply.reply = true;
@@ -188,8 +200,12 @@ bool rpc_manager::incoming(msg const& m)
 			|| tid < 0)
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(rpc) << "Reply with invalid transaction id: " 
-				<< tid << " from " << m.addr;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(rpc) << "Reply with invalid transaction id: " 
+					<< tid << " from " << m.addr;
+			}
 #endif
 			msg reply;
 			reply.reply = true;
@@ -207,8 +223,12 @@ bool rpc_manager::incoming(msg const& m)
 		if (!o)
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(rpc) << "Reply with unknown transaction id: " 
-				<< tid << " from " << m.addr << " (possibly timed out)";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(rpc) << "Reply with unknown transaction id: " 
+					<< tid << " from " << m.addr << " (possibly timed out)";
+			}
 #endif
 			return false;
 		}
@@ -216,20 +236,33 @@ bool rpc_manager::incoming(msg const& m)
 		if (m.addr.address() != o->target_addr.address())
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(rpc) << "Reply with incorrect address and valid transaction id: " 
-				<< tid << " from " << m.addr << " expected: " << o->target_addr;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(rpc) << "Reply with incorrect address and valid transaction id: " 
+					<< tid << " from " << m.addr << " expected: " << o->target_addr;
+			}
 #endif
 			return false;
 		}
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		std::ofstream reply_stats("libtorrent_logs/round_trip_ms.log", std::ios::app);
-		reply_stats << m.addr << "\t" << total_milliseconds(time_now() - o->sent)
-			<< std::endl;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			//. 2008.06.21 by chongyc
+			//std::ofstream reply_stats("libtorrent_logs/round_trip_ms.log", std::ios::app);
+			libtorrent::dht::log reply_stats("rpc", "round_trip_ms.log", true);
+			reply_stats << m.addr << "\t" << total_milliseconds(time_now() - o->sent) << "\n";
+		}
 #endif
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(rpc) << "Reply with transaction id: " 
-			<< tid << " from " << m.addr;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(rpc) << "Reply with transaction id: " 
+				<< tid << " from " << m.addr;
+		}
 #endif
 		o->reply(m);
 		m_transactions[tid] = 0;
@@ -289,8 +322,12 @@ time_duration rpc_manager::tick()
 		{
 			m_transactions[m_oldest_transaction_id] = 0;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(rpc) << "Timing out transaction id: " 
-				<< m_oldest_transaction_id << " from " << o->target_addr;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(rpc) << "Timing out transaction id: " 
+					<< m_oldest_transaction_id << " from " << o->target_addr;
+			}
 #endif
 			timeouts.push_back(o);
 		} catch (std::exception) {}
@@ -320,9 +357,13 @@ unsigned int rpc_manager::new_transaction_id(observer_ptr o)
 		observer_ptr o = m_transactions[m_next_transaction_id];
 		m_aborted_transactions.push_back(o);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(rpc) << "[new_transaction_id] Aborting message with transaction id: " 
-			<< m_next_transaction_id << " sent to " << o->target_addr
-			<< " " << total_seconds(time_now() - o->sent) << " seconds ago";
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(rpc) << "[new_transaction_id] Aborting message with transaction id: " 
+				<< m_next_transaction_id << " sent to " << o->target_addr
+				<< " " << total_seconds(time_now() - o->sent) << " seconds ago";
+		}
 #endif
 		m_transactions[m_next_transaction_id] = 0;
 		TORRENT_ASSERT(m_oldest_transaction_id == m_next_transaction_id);
@@ -333,8 +374,12 @@ unsigned int rpc_manager::new_transaction_id(observer_ptr o)
 	{
 		m_oldest_transaction_id = (m_oldest_transaction_id + 1) % max_transactions;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(rpc) << "WARNING: transaction limit reached! Too many concurrent"
-			" messages! limit: " << (int)max_transactions;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(rpc) << "WARNING: transaction limit reached! Too many concurrent"
+				" messages! limit: " << (int)max_transactions;
+		}
 #endif
 		update_oldest_transaction_id();
 	}
@@ -388,8 +433,12 @@ void rpc_manager::invoke(int message_id, udp::endpoint target_addr
 		o->target_addr = target_addr;
 
 	#ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(rpc) << "Invoking " << messages::ids[message_id] 
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(rpc) << "Invoking " << messages::ids[message_id] 
 			<< " -> " << target_addr;
+		}
 	#endif	
 		m_send(m);
 		new_transaction_id(o);

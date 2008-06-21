@@ -48,15 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition.hpp>
 #include <set>
 
-
-#if (defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)) && !defined (TORRENT_UPNP_LOGGING)
-#define TORRENT_UPNP_LOGGING
-#endif
-
-#if defined(TORRENT_UPNP_LOGGING)
-#include <fstream>
-#endif
-
 namespace libtorrent
 {
 
@@ -237,11 +228,8 @@ private:
 
 	connection_queue& m_cc;
 
-#ifdef TORRENT_UPNP_LOGGING
 	//. 2008.05.20 by chongyc
 	libtorrent::logger	m_log;
-	//std::ofstream m_log;
-#endif
 };
 
 }

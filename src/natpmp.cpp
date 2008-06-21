@@ -60,18 +60,12 @@ natpmp::natpmp(io_service& ios, address const& listen_interface, portmap_callbac
 	, m_send_timer(ios)
 	, m_refresh_timer(ios)
 	, m_disabled(false)
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 	//. 2008.05.20 by chongyc
 	, m_log(GetHomePath(), "natpmp.log", 0)
-#endif
 {
 	m_mappings[0].protocol = 2; // tcp
 	m_mappings[1].protocol = 1; // udp
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//x 2008.05.16 by chongyc
-	//m_log.open("natpmp.log", std::ios::in | std::ios::out | std::ios::trunc);
-#endif
 	rebind(listen_interface);
 }
 
@@ -93,10 +87,12 @@ void natpmp::rebind(address const& listen_interface) try
 		}
 	}
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " local ip: " << local.to_string() << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_natpmp)
+	{
+		m_log << time_now_string()
+			<< " local ip: " << local.to_string() << "\n";
+	}
 
 	if (!is_local(local))
 	{
@@ -115,9 +111,11 @@ void natpmp::rebind(address const& listen_interface) try
 	if (nat_endpoint == m_nat_endpoint) return;
 	m_nat_endpoint = nat_endpoint;
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << "assuming router is at: " << m_nat_endpoint.address().to_string() << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_natpmp)
+	{
+		m_log << "assuming router is at: " << m_nat_endpoint.address().to_string() << "\n";
+	}
 
 	m_socket.open(udp::v4());
 	m_socket.bind(udp::endpoint(address_v4::any(), 0));
@@ -134,9 +132,13 @@ catch (std::exception& e)
 	m_disabled = true;
 	std::stringstream msg;
 	msg << "NAT-PMP disabled: " << e.what();
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << msg.str() << "\n";
-#endif
+
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_natpmp)
+	{
+		m_log << msg.str() << "\n";
+	}
+
 	m_callback(0, 0, msg.str());
 };
 
@@ -187,12 +189,14 @@ void natpmp::send_map_request(int i) try
 	int ttl = m.external_port == 0 ? 0 : 3600;
 	write_uint32(ttl, out); // port mapping lifetime
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " ==> port map request: " << (m.protocol == 1 ? "udp" : "tcp")
-		<< " local: " << m.local_port << " external: " << m.external_port
-		<< " ttl: " << ttl << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_natpmp)
+	{
+		m_log << time_now_string()
+			<< " ==> port map request: " << (m.protocol == 1 ? "udp" : "tcp")
+			<< " local: " << m.local_port << " external: " << m.external_port
+			<< " ttl: " << ttl << "\n";
+	}
 
 	m_socket.send_to(asio::buffer(buf, 12), m_nat_endpoint);
 	// linear back-off instead of exponential
@@ -252,33 +256,29 @@ void natpmp::on_reply(asio::error_code const& e
 
 		(void)time; // to remove warning
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-		m_log << time_now_string()
-			<< " <== port map response: " << (cmd - 128 == 1 ? "udp" : "tcp")
-			<< " local: " << private_port << " external: " << public_port
-			<< " ttl: " << lifetime << "\n";
-#endif
-
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-		if (version != 0)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_natpmp)
 		{
-			m_log << "*** unexpected version: " << version << "\n";
-		}
-#endif
+			m_log << time_now_string()
+				<< " <== port map response: " << (cmd - 128 == 1 ? "udp" : "tcp")
+				<< " local: " << private_port << " external: " << public_port
+				<< " ttl: " << lifetime << "\n";
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-		if (private_port != m.local_port)
-		{
-			m_log << "*** unexpected local port: " << private_port << "\n";
-		}
-#endif
+			if (version != 0)
+			{
+				m_log << "*** unexpected version: " << version << "\n";
+			}
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-		if (cmd != 128 + m.protocol)
-		{
-			m_log << "*** unexpected protocol: " << (cmd - 128) << "\n";
+			if (private_port != m.local_port)
+			{
+				m_log << "*** unexpected local port: " << private_port << "\n";
+			}
+
+			if (cmd != 128 + m.protocol)
+			{
+				m_log << "*** unexpected protocol: " << (cmd - 128) << "\n";
+			}
 		}
-#endif
 
 		if (public_port == 0 || lifetime == 0)
 		{
@@ -294,9 +294,6 @@ void natpmp::on_reply(asio::error_code const& e
 		
 		if (result != 0)
 		{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-			m_log << "*** ERROR: " << result << "\n";
-#endif
 			std::stringstream errmsg;
 			errmsg << "NAT router reports error (" << result << ") ";
 			switch (result)
@@ -307,6 +304,13 @@ void natpmp::on_reply(asio::error_code const& e
 				case 4: errmsg << "Out of resources"; break;
 				case 5: errmsg << "Unsupported opcode"; break;
 			}
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_natpmp)
+			{
+				m_log << "*** ERROR: " << errmsg.str() << "\n";
+			}
+
 			throw std::runtime_error(errmsg.str());
 		}
 
@@ -357,9 +361,13 @@ void natpmp::update_expiration_timer()
 void natpmp::mapping_expired(asio::error_code const& e, int i)
 {
 	if (e) return;
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << "*** mapping " << i << " expired, updating" << "\n";
-#endif
+
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_natpmp)
+	{
+		m_log << "*** mapping " << i << " expired, updating" << "\n";
+	}
+
 	refresh_mapping(i);
 }
 

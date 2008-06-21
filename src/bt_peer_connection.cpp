@@ -113,9 +113,11 @@ namespace libtorrent
 		, m_sent_handshake(false)
 #endif
 	{
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << "*** bt_peer_connection\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << "*** bt_peer_connection\n";
+		}
 
 #ifndef NDEBUG
 		m_in_constructor = false;
@@ -252,10 +254,13 @@ namespace libtorrent
 
 		TORRENT_ASSERT(m_sent_handshake && m_sent_bitfield);
 		
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ==> DHT_PORT [ " << listen_port << " ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ==> DHT_PORT [ " << listen_port << " ]\n";
+		}
+
 		char msg[] = {0,0,0,3, msg_dht_port, 0, 0};
 		char* ptr = msg + 5;
 		detail::write_uint16(listen_port, ptr);
@@ -269,10 +274,13 @@ namespace libtorrent
 #ifndef NDEBUG
 		m_sent_bitfield = true;
 #endif
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ==> HAVE_ALL\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ==> HAVE_ALL\n";
+		}
+
 		char msg[] = {0,0,0,1, msg_have_all};
 		send_buffer(msg, sizeof(msg));
 	}
@@ -284,10 +292,13 @@ namespace libtorrent
 #ifndef NDEBUG
 		m_sent_bitfield = true;
 #endif
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string()
-			<< " ==> HAVE_NONE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string()
+				<< " ==> HAVE_NONE\n";
+		}
+
 		char msg[] = {0,0,0,1, msg_have_none};
 		send_buffer(msg, sizeof(msg));
 	}
@@ -369,18 +380,22 @@ namespace libtorrent
 		TORRENT_ASSERT(!m_DH_key_exchange.get());
 		TORRENT_ASSERT(!m_sent_handshake);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		if (is_local())
-			(*m_logger) << " initiating encrypted handshake\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			if (is_local())
+				(*m_logger) << " initiating encrypted handshake\n";
+		}
 
 		m_DH_key_exchange.reset(new DH_key_exchange);
 
 		int pad_size = std::rand() % 512;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " pad size: " << pad_size << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << " pad size: " << pad_size << "\n";
+		}
 
 		buffer::interval send_buf = allocate_send_buffer(dh_key_len + pad_size);
 
@@ -391,9 +406,12 @@ namespace libtorrent
 		std::generate(send_buf.begin + dh_key_len, send_buf.end, std::rand);
 		setup_send();
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " sent DH key\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << " sent DH key\n";
+		}
+
 	}
 
 	void bt_peer_connection::write_pe3_sync()
@@ -460,15 +478,17 @@ namespace libtorrent
 		else if (allowed_enc_level == pe_settings::plaintext)
 			crypto_provide = 0x01;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " crypto provide : [ ";
-		if (allowed_enc_level == pe_settings::both)
-			(*m_logger) << "plaintext rc4 ]\n";
-		else if (allowed_enc_level == pe_settings::rc4)
-			(*m_logger) << "rc4 ]\n";
-		else if (allowed_enc_level == pe_settings::plaintext)
-			(*m_logger) << "plaintext ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << " crypto provide : [ ";
+			if (allowed_enc_level == pe_settings::both)
+				(*m_logger) << "plaintext rc4 ]\n";
+			else if (allowed_enc_level == pe_settings::rc4)
+				(*m_logger) << "rc4 ]\n";
+			else if (allowed_enc_level == pe_settings::plaintext)
+				(*m_logger) << "plaintext ]\n";
+		}
 
 		write_pe_vc_cryptofield(send_buf, crypto_provide, pad_size);
 		m_RC4_handler->encrypt(send_buf.end - encrypt_size, encrypt_size);
@@ -502,13 +522,16 @@ namespace libtorrent
 		else // 0x01
 			m_rc4_encrypted = false;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " crypto select : [ ";
-		if (crypto_select == 0x01)
-			(*m_logger) << "plaintext ]\n";
-		else
-			(*m_logger) << "rc4 ]\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << " crypto select : [ ";
+			if (crypto_select == 0x01)
+				(*m_logger) << "plaintext ]\n";
+			else
+				(*m_logger) << "rc4 ]\n";
+		}
+
 	}
 
  	void bt_peer_connection::write_pe_vc_cryptofield(buffer::interval& write_buf
@@ -576,9 +599,12 @@ namespace libtorrent
 		TORRENT_ASSERT(!m_RC4_handler.get());
 		m_RC4_handler.reset(new RC4_handler (local_key, remote_key));
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << " computed RC4 keys\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << " computed RC4 keys\n";
+		}
+
 	}
 
 	void bt_peer_connection::send_buffer(char* buf, int size)
@@ -725,9 +751,12 @@ namespace libtorrent
 		i.begin += 20;
 		TORRENT_ASSERT(i.begin == i.end);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> HANDSHAKE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> HANDSHAKE\n";
+		}
+
 		setup_send();
 	}
 
@@ -774,9 +803,12 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " <== KEEPALIVE\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string() << " <== KEEPALIVE\n";
+		}
+
 		incoming_keepalive();
 	}
 
@@ -1179,17 +1211,23 @@ namespace libtorrent
 		catch (std::exception& exc)
 		{
 			(void)exc;
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "invalid extended handshake: " << exc.what() << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << "invalid extended handshake: " << exc.what() << "\n";
+			}
+
 			return;
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		std::stringstream ext;
-		root.print(ext);
-		(*m_logger) << "<== EXTENDED HANDSHAKE: \n" << ext.str();
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			std::stringstream ext;
+			root.print(ext);
+			(*m_logger) << "<== EXTENDED HANDSHAKE: \n" << ext.str();
+		}
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (extension_list_t::iterator i = m_extensions.begin()
@@ -1387,26 +1425,29 @@ namespace libtorrent
 			lazy_piece = 0;
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> BITFIELD ";
-
-		std::stringstream bitfield_string;
-		for (int i = 0; i < (int)get_bitfield().size(); ++i)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
 		{
-			if (lazy_piece < num_lazy_pieces
-				&& lazy_pieces[lazy_piece] == i)
+			(*m_logger) << time_now_string() << " ==> BITFIELD ";
+
+			std::stringstream bitfield_string;
+			for (int i = 0; i < (int)get_bitfield().size(); ++i)
 			{
-				bitfield_string << "0";
-				++lazy_piece;
-				continue;
+				if (lazy_piece < num_lazy_pieces
+					&& lazy_pieces[lazy_piece] == i)
+				{
+					bitfield_string << "0";
+					++lazy_piece;
+					continue;
+				}
+				if (bitfield[i]) bitfield_string << "1";
+				else bitfield_string << "0";
 			}
-			if (bitfield[i]) bitfield_string << "1";
-			else bitfield_string << "0";
+			bitfield_string << "\n";
+			(*m_logger) << bitfield_string.str();
+			lazy_piece = 0;
 		}
-		bitfield_string << "\n";
-		(*m_logger) << bitfield_string.str();
-		lazy_piece = 0;
-#endif
+
 		const int packet_size = (num_pieces + 7) / 8 + 5;
 	
 		buffer::interval i = allocate_send_buffer(packet_size);	
@@ -1438,10 +1479,14 @@ namespace libtorrent
 			for (int i = 0; i < num_lazy_pieces; ++i)
 			{
 				write_have(lazy_pieces[i]);
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << time_now_string()
-					<< " ==> HAVE    [ piece: " << lazy_pieces[i] << "]\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << time_now_string()
+						<< " ==> HAVE    [ piece: " << lazy_pieces[i] << "]\n";
+				}
+
 			}
 		}
 
@@ -1454,9 +1499,12 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << time_now_string() << " ==> EXTENSIONS\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			(*m_logger) << time_now_string() << " ==> EXTENSIONS\n";
+		}
+
 		TORRENT_ASSERT(m_supports_extensions);
 		TORRENT_ASSERT(m_sent_handshake);
 
@@ -1509,11 +1557,13 @@ namespace libtorrent
 		i.begin += msg.size();
 		TORRENT_ASSERT(i.begin == i.end);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		std::stringstream ext;
-		handshake.print(ext);
-		(*m_logger) << "==> EXTENDED HANDSHAKE: \n" << ext.str();
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_bt_connection)
+		{
+			std::stringstream ext;
+			handshake.print(ext);
+			(*m_logger) << "==> EXTENDED HANDSHAKE: \n" << ext.str();
+		}
 
 		setup_send();
 	}
@@ -1670,9 +1720,11 @@ namespace libtorrent
 			// read dh key, generate shared secret
 			m_DH_key_exchange->compute_secret (recv_buffer.begin); // TODO handle errors
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " received DH key\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << " received DH key\n";
+			}
 						
 			// PadA/B can be a max of 512 bytes, and 20 bytes more for
 			// the sync hash (if incoming), or 8 bytes more for the
@@ -1760,10 +1812,14 @@ namespace libtorrent
 			else
 			{
 				std::size_t bytes_processed = syncoffset + 20;
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " sync point (hash) found at offset " 
-					<< m_sync_bytes_read + bytes_processed - 20 << "\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " sync point (hash) found at offset " 
+						<< m_sync_bytes_read + bytes_processed - 20 << "\n";
+				}
+
 				m_state = read_pe_skey_vc;
 				// skey,vc - 28 bytes
 				m_sync_hash.reset();
@@ -1821,9 +1877,13 @@ namespace libtorrent
 					}
 
 					init_pe_RC4_handler(m_DH_key_exchange->get_secret(), info_hash);
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << " stream key found, torrent located.\n";
-#endif
+
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_bt_connection)
+					{
+						(*m_logger) << " stream key found, torrent located.\n";
+					}
+
 					continue; // TODO Check flow control with multiple torrents
 				}
 			}
@@ -1842,9 +1902,12 @@ namespace libtorrent
 				throw protocol_error("unable to verify constant");
 			}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " verification constant found\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << " verification constant found\n";
+			}
+
 			m_state = read_pe_cryptofield;
 			reset_recv_buffer(4 + 2);
 		}
@@ -1898,10 +1961,14 @@ namespace libtorrent
 			else
 			{
 				std::size_t bytes_processed = syncoffset + 8;
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " sync point (verification constant) found at offset " 
-							<< m_sync_bytes_read + bytes_processed - 8 << "\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " sync point (verification constant) found at offset " 
+						<< m_sync_bytes_read + bytes_processed - 8 << "\n";
+				}
+
 				cut_receive_buffer (bytes_processed, 4 + 2);
 
 				// delete verification constant
@@ -1926,18 +1993,20 @@ namespace libtorrent
 			
 			int crypto_field = detail::read_int32(recv_buffer.begin);
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			if (!is_local())
-				(*m_logger) << " crypto provide : [ ";
-			else
-				(*m_logger) << " crypto select : [ ";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				if (!is_local())
+					(*m_logger) << " crypto provide : [ ";
+				else
+					(*m_logger) << " crypto select : [ ";
 
-			if (crypto_field & 0x01)
-				(*m_logger) << "plaintext ";
-			if (crypto_field & 0x02)
-				(*m_logger) << "rc4 ";
-			(*m_logger) << "]\n";
-#endif
+				if (crypto_field & 0x01)
+					(*m_logger) << "plaintext ";
+				if (crypto_field & 0x02)
+					(*m_logger) << "rc4 ";
+				(*m_logger) << "]\n";
+			}
 
 			if (!is_local())
 			{
@@ -2042,9 +2111,12 @@ namespace libtorrent
 				
 				if (len_ia < 0) throw protocol_error("invalid len_ia in handshake");
 
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " len(IA) : " << len_ia << "\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " len(IA) : " << len_ia << "\n";
+				}
+
 				if (len_ia == 0)
 				{
 					// everything after this is Encrypt2
@@ -2076,16 +2148,22 @@ namespace libtorrent
 			buffer::interval wr_buf = wr_recv_buffer();
 			m_RC4_handler->decrypt(wr_buf.begin, packet_size());
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " decrypted ia : " << packet_size() << " bytes\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << " decrypted ia : " << packet_size() << " bytes\n";
+			}
 
 			if (!m_rc4_encrypted)
 			{
 				m_RC4_handler.reset();
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " destroyed rc4 keys\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " destroyed rc4 keys\n";
+				}
+
 			}
 
 			// everything that arrives after this is Encrypt2
@@ -2105,16 +2183,24 @@ namespace libtorrent
 				buffer::interval wr_buf = wr_recv_buffer();
 				wr_buf.begin += packet_size();
 				m_RC4_handler->decrypt(wr_buf.begin, wr_buf.left());
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " decrypted remaining " << wr_buf.left() << " bytes\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " decrypted remaining " << wr_buf.left() << " bytes\n";
+				}
+
 			}
 			else // !m_rc4_encrypted
 			{
 				m_RC4_handler.reset();
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " destroyed rc4 keys\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " destroyed rc4 keys\n";
+				}
+
 			}
 
 			// payload stream, start with 20 handshake bytes
@@ -2156,9 +2242,12 @@ namespace libtorrent
 				// within an encrypted connection
 				if (!m_encrypted && !is_local())
 				{
-#ifdef TORRENT_VERBOSE_LOGGING
- 					(*m_logger) << " attempting encrypted connection\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_bt_connection)
+					{
+						(*m_logger) << " attempting encrypted connection\n";
+					}
+
  					m_state = read_pe_dhkey;
 					cut_receive_buffer(0, dh_key_len);
 					TORRENT_ASSERT(!packet_finished());
@@ -2179,9 +2268,11 @@ namespace libtorrent
 				throw protocol_error("non encrypted incoming connections disabled");
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << " BitTorrent protocol\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << " BitTorrent protocol\n";
+			}
 
 			m_state = read_info_hash;
 			reset_recv_buffer(28);
@@ -2195,24 +2286,25 @@ namespace libtorrent
 			if (!packet_finished()) return;
 			recv_buffer = receive_buffer();
 
-
-#ifdef TORRENT_VERBOSE_LOGGING	
-			for (int i=0; i < 8; ++i)
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
 			{
-				for (int j=0; j < 8; ++j)
+				for (int i=0; i < 8; ++i)
 				{
-					if (recv_buffer[i] & (0x80 >> j)) (*m_logger) << "1";
-					else (*m_logger) << "0";
+					for (int j=0; j < 8; ++j)
+					{
+						if (recv_buffer[i] & (0x80 >> j)) (*m_logger) << "1";
+						else (*m_logger) << "0";
+					}
 				}
+				(*m_logger) << "\n";
+				if (recv_buffer[7] & 0x01)
+					(*m_logger) << "supports DHT port message\n";
+				if (recv_buffer[7] & 0x04)
+					(*m_logger) << "supports FAST extensions\n";
+				if (recv_buffer[5] & 0x10)
+					(*m_logger) << "supports extensions protocol\n";
 			}
-			(*m_logger) << "\n";
-			if (recv_buffer[7] & 0x01)
-				(*m_logger) << "supports DHT port message\n";
-			if (recv_buffer[7] & 0x04)
-				(*m_logger) << "supports FAST extensions\n";
-			if (recv_buffer[5] & 0x10)
-				(*m_logger) << "supports extensions protocol\n";
-#endif
 
 #ifndef DISABLE_EXTENSIONS
 			if ((recv_buffer[5] & 0x10))
@@ -2242,15 +2334,21 @@ namespace libtorrent
 				if (!std::equal(recv_buffer.begin + 8, recv_buffer.begin + 28
 					, (const char*)t->torrent_file().info_hash().begin()))
 				{
-#ifdef TORRENT_VERBOSE_LOGGING
-					(*m_logger) << " received invalid info_hash\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_bt_connection)
+					{
+						(*m_logger) << " received invalid info_hash\n";
+					}
+
 					throw protocol_error("invalid info-hash in handshake");
 				}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-				(*m_logger) << " info_hash received\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_bt_connection)
+				{
+					(*m_logger) << " info_hash received\n";
+				}
+
 			}
 
 			t = associated_torrent().lock();
@@ -2281,7 +2379,8 @@ namespace libtorrent
  			if (!packet_finished()) return;
 			recv_buffer = receive_buffer();
 
-#ifdef TORRENT_VERBOSE_LOGGING
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
 			{
 				peer_id tmp;
 				std::copy(recv_buffer.begin, recv_buffer.begin + 20, (char*)tmp.begin());
@@ -2296,7 +2395,7 @@ namespace libtorrent
 				s << "\n";
 				(*m_logger) << s.str();
 			}
-#endif
+
 			peer_id pid;
 			std::copy(recv_buffer.begin, recv_buffer.begin + 20, (char*)pid.begin());
 			set_pid(pid);
@@ -2363,9 +2462,12 @@ namespace libtorrent
 			if (m_supports_extensions) write_extensions();
 #endif
 
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << time_now_string() << " <== HANDSHAKE\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_bt_connection)
+			{
+				(*m_logger) << time_now_string() << " <== HANDSHAKE\n";
+			}
+
 			// consider this a successful connection, reset the failcount
 			if (peer_info_struct()) peer_info_struct()->failcount = 0;
 			

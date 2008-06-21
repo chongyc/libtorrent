@@ -97,9 +97,12 @@ namespace libtorrent
 		// since this is a web seed, change the timeout
 		// according to the settings.
 		set_timeout(ses.settings().urlseed_timeout);
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << "*** web_peer_connection\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_web_connection)
+		{
+			(*m_logger) << "*** web_peer_connection\n";
+		}
 
 		std::string protocol;
 		boost::tie(protocol, m_auth, m_host, m_port, m_path)
@@ -312,9 +315,11 @@ namespace libtorrent
 			}
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << request << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_web_connection)
+		{
+			(*m_logger) << request << "\n";
+		}
 
 		send_buffer(request.c_str(), request.size());
 	}
@@ -342,10 +347,13 @@ namespace libtorrent
 
 		if (error)
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "*** web_peer_connection error: "
-				<< error.message() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_web_connection)
+			{
+				(*m_logger) << "*** web_peer_connection error: "
+					<< error.message() << "\n";
+			}
+
 			return;
 		}
 

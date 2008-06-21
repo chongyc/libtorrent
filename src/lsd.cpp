@@ -61,15 +61,8 @@ lsd::lsd(io_service& ios, address const& listen_interface
 		, bind(&lsd::on_announce, self(), _1, _2, _3))
 	, m_broadcast_timer(ios)
 	, m_disabled(false)
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//. 2008.05.20 by chongyc
-	, m_log(GetHomePath(), "lsd.log", 0)
-#endif
+	, m_log(GetHomePath(), "lsd.log", 0)	//. 2008.06.21 by chongyc
 {
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	//x 2008.05.16 by chongyc
-	//m_log.open("lsd.log", std::ios::in | std::ios::out | std::ios::trunc);
-#endif
 }
 
 lsd::~lsd() {}
@@ -95,10 +88,12 @@ void lsd::announce(sha1_hash const& ih, int listen_port)
 		return;
 	}
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " ==> announce: ih: " << ih << " port: " << listen_port << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_lsd)
+	{
+		m_log << time_now_string()
+			<< " ==> announce: ih: " << ih << " port: " << listen_port << "\n";
+	}
 
 	m_broadcast_timer.expires_from_now(milliseconds(250 * m_retry_count));
 	m_broadcast_timer.async_wait(bind(&lsd::resend_announce, self(), _1, msg));
@@ -132,39 +127,51 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 
 	if (!p.header_finished())
 	{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " <== announce: incomplete HTTP message\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_lsd)
+		{
+			m_log << time_now_string()
+				<< " <== announce: incomplete HTTP message\n";
+		}
+
 		return;
 	}
 
 	if (p.method() != "bt-search")
 	{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " <== announce: invalid HTTP method: " << p.method() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_lsd)
+		{
+			m_log << time_now_string()
+				<< " <== announce: invalid HTTP method: " << p.method() << "\n";
+		}
+
 		return;
 	}
 
 	std::string const& port_str = p.header("port");
 	if (port_str.empty())
 	{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " <== announce: invalid BT-SEARCH, missing port" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_lsd)
+		{
+			m_log << time_now_string()
+				<< " <== announce: invalid BT-SEARCH, missing port" << "\n";
+		}
+
 		return;
 	}
 
 	std::string const& ih_str = p.header("infohash");
 	if (ih_str.empty())
 	{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	m_log << time_now_string()
-		<< " <== announce: invalid BT-SEARCH, missing infohash" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_lsd)
+		{
+			m_log << time_now_string()
+				<< " <== announce: invalid BT-SEARCH, missing infohash" << "\n";
+		}
+
 		return;
 	}
 
@@ -175,11 +182,14 @@ void lsd::on_announce(udp::endpoint const& from, char* buffer
 
 	if (!ih.is_all_zeros() && port != 0)
 	{
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-		m_log << time_now_string()
-			<< " *** incoming local announce " << from.address()
-			<< ":" << port << " ih: " << ih << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_lsd)
+		{
+			m_log << time_now_string()
+				<< " *** incoming local announce " << from.address()
+				<< ":" << port << " ih: " << ih << "\n";
+		}
+
 		// we got an announce, pass it on through the callback
 		try { m_callback(tcp::endpoint(from.address(), port), ih); }
 		catch (std::exception&) {}

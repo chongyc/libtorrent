@@ -215,7 +215,9 @@ public:
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	// used for debug and monitoring purposes. This will print out
 	// the state of the routing table to the given stream
-	void print_state(std::ostream& os) const;
+	//. 2008.06.21 by chongyc
+	void print_state(libtorrent::dht::log& os) const;
+	//void print_state(std::ostream& os) const;
 #endif
 
 private:

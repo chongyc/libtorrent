@@ -161,9 +161,7 @@ namespace libtorrent
 			bool m_abort;
 		};
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		struct tracker_logger;
-#endif
 
 		// this is the link between the main thread and the
 		// thread started to run the main downloader loop
@@ -185,9 +183,7 @@ namespace libtorrent
 				std::pair<int, int> listen_port_range
 				, fingerprint const& cl_fprint
 				, char const* listen_interface
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 				, fs::path const& logpath
-#endif
 				);
 			~session_impl();
 
@@ -586,7 +582,7 @@ namespace libtorrent
 			// the number of send buffers that are allocated
 			int m_buffer_allocations;
 #endif
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
+
 			boost::shared_ptr<logger> create_log(std::string const& name
 				, int instance, bool append = true);
 			
@@ -599,7 +595,6 @@ namespace libtorrent
 		public:
 			boost::shared_ptr<logger> m_logger;
 		private:
-#endif
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 			typedef std::list<boost::function<boost::shared_ptr<
@@ -620,13 +615,16 @@ namespace libtorrent
 			boost::scoped_ptr<boost::thread> m_checker_thread;
 		};
 		
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
 		struct tracker_logger : request_callback
 		{
 			tracker_logger(session_impl& ses): m_ses(ses) {}
 			void tracker_warning(std::string const& str)
 			{
-				debug_log("*** tracker warning: " + str);
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
+				{
+					debug_log("*** tracker warning: " + str);
+				}
 			}
 
 			void tracker_response(tracker_request const&
@@ -635,25 +633,33 @@ namespace libtorrent
 				, int complete
 				, int incomplete)
 			{
-				std::stringstream s;
-				s << "TRACKER RESPONSE:\n"
-					"interval: " << interval << "\n"
-					"peers:\n";
-				for (std::vector<peer_entry>::const_iterator i = peers.begin();
-					i != peers.end(); ++i)
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
 				{
-					s << "  " << std::setfill(' ') << std::setw(16) << i->ip
-						<< " " << std::setw(5) << std::dec << i->port << "  ";
-					if (!i->pid.is_all_zeros()) s << " " << i->pid;
-					s << "\n";
+					std::stringstream s;
+					s << "TRACKER RESPONSE:\n"
+						"interval: " << interval << "\n"
+						"peers:\n";
+					for (std::vector<peer_entry>::const_iterator i = peers.begin();
+						i != peers.end(); ++i)
+					{
+						s << "  " << std::setfill(' ') << std::setw(16) << i->ip
+							<< " " << std::setw(5) << std::dec << i->port << "  ";
+						if (!i->pid.is_all_zeros()) s << " " << i->pid;
+						s << "\n";
+					}
+					debug_log(s.str());
 				}
-				debug_log(s.str());
 			}
 
 			void tracker_request_timed_out(
 				tracker_request const&)
 			{
-				debug_log("*** tracker timed out");
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
+				{
+					debug_log("*** tracker timed out");
+				}
 			}
 
 			void tracker_request_error(
@@ -661,18 +667,25 @@ namespace libtorrent
 				, int response_code
 				, const std::string& str)
 			{
-				debug_log(std::string("*** tracker error: ")
-					+ boost::lexical_cast<std::string>(response_code) + ": "
-					+ str);
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
+				{
+					debug_log(std::string("*** tracker error: ")
+						+ boost::lexical_cast<std::string>(response_code) + ": "
+						+ str);
+				}
 			}
 			
 			void debug_log(const std::string& line)
 			{
-				(*m_ses.m_logger) << time_now_string() << " " << line << "\n";
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_tracker)
+				{
+					(*m_ses.m_logger) << time_now_string() << " " << line << "\n";
+				}
 			}
 			session_impl& m_ses;
 		};
-#endif
 
 	}
 }

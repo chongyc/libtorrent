@@ -47,10 +47,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/mutex.hpp>
 #include <cstdlib>
 
-#if (defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)) && !defined(TORRENT_UPNP_LOGGING)
-#define TORRENT_UPNP_LOGGING
-#endif
-
 using boost::bind;
 using namespace libtorrent;
 
@@ -78,14 +74,9 @@ upnp::upnp(io_service& ios, connection_queue& cc
 	, m_closing(false)
 	, m_ignore_outside_network(ignore_nonrouters)
 	, m_cc(cc)
-#ifdef TORRENT_UPNP_LOGGING
 	//. 2008.05.20 by chongyc
 	, m_log(GetHomePath(), "upnp.log", 0)
-#endif
 {
-#ifdef TORRENT_UPNP_LOGGING
-	//m_log.open("upnp.log", std::ios::in | std::ios::out | std::ios::trunc);
-#endif
 	m_retry_count = 0;
 }
 
@@ -112,11 +103,14 @@ void upnp::discover_device() try
 
 	if (ec)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " ==> Broadcast FAILED: " << ec.message() << "\n"
-			<< "aborting" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " ==> Broadcast FAILED: " << ec.message() << "\n"
+				<< "aborting" << "\n";
+		}
+
 		disable();
 		return;
 	}
@@ -126,10 +120,12 @@ void upnp::discover_device() try
 	m_broadcast_timer.async_wait(bind(&upnp::resend_request
 		, self(), _1));
 
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " ==> Broadcasting search for rootdevice" << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " ==> Broadcasting search for rootdevice" << "\n";
+	}
 }
 catch (std::exception&)
 {
@@ -138,12 +134,14 @@ catch (std::exception&)
 
 void upnp::set_mappings(int tcp, int udp)
 {
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " *** set mappings " << tcp << " " << udp;
-	if (m_disabled) m_log << " DISABLED";
-	m_log << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " *** set mappings " << tcp << " " << udp;
+		if (m_disabled) m_log << " DISABLED";
+		m_log << "\n";
+	}
 
 	if (m_disabled) return;
 	if (udp != 0) m_udp_local_port = udp;
@@ -189,11 +187,14 @@ try
 
 	if (m_devices.empty())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " *** Got no response in 9 retries. Giving up, "
-			"disabling UPnP." << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " *** Got no response in 9 retries. Giving up, "
+				"disabling UPnP." << "\n";
+		}
+
 		disable();
 		return;
 	}
@@ -209,10 +210,13 @@ try
 			TORRENT_ASSERT(d.magic == 1337);
 			try
 			{
-#ifdef TORRENT_UPNP_LOGGING
-				m_log << time_now_string()
-					<< " ==> connecting to " << d.url << "\n";
-#endif
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_upnp)
+				{
+					m_log << time_now_string()
+						<< " ==> connecting to " << d.url << "\n";
+				}
+
 				if (d.upnp_connection) d.upnp_connection->close();
 				d.upnp_connection.reset(new http_connection(m_io_service
 					, m_cc, bind(&upnp::on_upnp_xml, self(), _1, _2
@@ -222,11 +226,15 @@ try
 			catch (std::exception& e)
 			{
 				(void)e;
-#ifdef TORRENT_UPNP_LOGGING
-				m_log << time_now_string()
-					<< " *** Connection failed to: " << d.url
-					<< " " << e.what() << "\n";
-#endif
+
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_upnp)
+				{
+					m_log << time_now_string()
+						<< " *** Connection failed to: " << d.url
+						<< " " << e.what() << "\n";
+				}
+
 				d.disabled = true;
 			}
 		}
@@ -278,25 +286,28 @@ try
 	{
 		// this upnp device is filtered because it's not in the
 		// list of configured routers
-#ifdef TORRENT_UPNP_LOGGING
-		if (ec)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
 		{
-			m_log << time_now_string() << " <== (" << from << ") error: "
-				<< ec.message() << "\n";
-		}
-		else
-		{
-			std::vector<ip_interface> const& net = enum_net_interfaces(m_io_service, ec);
-			m_log << time_now_string() << " <== (" << from << ") UPnP device "
-				"ignored because it's not on our network ";
-			for (std::vector<ip_interface>::const_iterator i = net.begin()
-				, end(net.end()); i != end; ++i)
+			if (ec)
 			{
-				m_log << "(" << i->interface_address << ", " << i->netmask << ") ";
+				m_log << time_now_string() << " <== (" << from << ") error: "
+					<< ec.message() << "\n";
 			}
-			m_log << "\n";
+			else
+			{
+				std::vector<ip_interface> const& net = enum_net_interfaces(m_io_service, ec);
+				m_log << time_now_string() << " <== (" << from << ") UPnP device "
+					"ignored because it's not on our network ";
+				for (std::vector<ip_interface>::const_iterator i = net.begin()
+					, end(net.end()); i != end; ++i)
+				{
+					m_log << "(" << i->interface_address << ", " << i->netmask << ") ";
+				}
+				m_log << "\n";
+			}
 		}
-#endif
+
 		return;
 	}
 
@@ -309,46 +320,59 @@ try
 	catch (std::exception& e)
 	{
 		(void)e;
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << from << ") Rootdevice responded with incorrect HTTP packet. Ignoring device (" << e.what() << ")" << "\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << from << ") Rootdevice responded with incorrect HTTP packet. Ignoring device (" << e.what() << ")" << "\n";
+		}
+
 		return;
 	}
 
 	if (p.status_code() != 200 && p.method() != "notify")
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		if (p.method().empty())
-			m_log << time_now_string()
-				<< " <== (" << from << ") Device responded with HTTP status: " << p.status_code()
-				<< ". Ignoring device" << "\n";
-		else
-			m_log << time_now_string()
-				<< " <== (" << from << ") Device with HTTP method: " << p.method()
-				<< ". Ignoring device" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			if (p.method().empty())
+				m_log << time_now_string()
+					<< " <== (" << from << ") Device responded with HTTP status: " << p.status_code()
+					<< ". Ignoring device" << "\n";
+			else
+				m_log << time_now_string()
+					<< " <== (" << from << ") Device with HTTP method: " << p.method()
+					<< ". Ignoring device" << "\n";
+		}
+
 		return;
 	}
 
 	if (!p.header_finished())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << from << ") Rootdevice responded with incomplete HTTP "
-			"packet. Ignoring device" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << from << ") Rootdevice responded with incomplete HTTP "
+				"packet. Ignoring device" << "\n";
+		}
+
 		return;
 	}
 
 	std::string url = p.header("location");
 	if (url.empty())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << from << ") Rootdevice response is missing a location header. "
-			"Ignoring device" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << from << ") Rootdevice response is missing a location header. "
+				"Ignoring device" << "\n";
+		}
+
 		return;
 	}
 
@@ -370,11 +394,14 @@ try
 		}
 		catch (std::exception& e)
 		{
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string()
-				<< " <== (" << from << ") invalid url: '" << d.url
-				<< "'. Ignoring device" << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string()
+					<< " <== (" << from << ") invalid url: '" << d.url
+					<< "'. Ignoring device" << "\n";
+			}
+
 			return;
 		}
 
@@ -383,36 +410,48 @@ try
 
 		if (protocol != "http")
 		{
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string()
-				<< " <== (" << from << ") Rootdevice uses unsupported protocol: '" << protocol
-				<< "'. Ignoring device" << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string()
+					<< " <== (" << from << ") Rootdevice uses unsupported protocol: '" << protocol
+					<< "'. Ignoring device" << "\n";
+			}
+
 			return;
 		}
 
 		if (d.port == 0)
 		{
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string()
-				<< " <== (" << from << ") Rootdevice responded with a url with port 0. "
-				"Ignoring device" << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string()
+					<< " <== (" << from << ") Rootdevice responded with a url with port 0. "
+					"Ignoring device" << "\n";
+			}
+
 			return;
 		}
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << from << ") Found rootdevice: " << d.url
-			<< " total: " << m_devices.size() << "\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << from << ") Found rootdevice: " << d.url
+				<< " total: " << m_devices.size() << "\n";
+		}
 
 		if (m_devices.size() >= 50)
 		{
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string()
-				<< " <== (" << from << ") Too many devices (" << m_devices.size() << "), "
-				"ignoring: " << d.url << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string()
+					<< " <== (" << from << ") Too many devices (" << m_devices.size() << "), "
+					"ignoring: " << d.url << "\n";
+			}
+
 			return;
 		}
 
@@ -422,9 +461,13 @@ try
 			d.mapping[0].local_port = m_tcp_local_port;
 			if (d.mapping[0].external_port == 0)
 				d.mapping[0].external_port = d.mapping[0].local_port;
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string() << " *** Mapping 0 will be updated" << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string() << " *** Mapping 0 will be updated" << "\n";
+			}
+
 		}
 		if (m_udp_local_port != 0)
 		{
@@ -432,9 +475,12 @@ try
 			d.mapping[1].local_port = m_udp_local_port;
 			if (d.mapping[1].external_port == 0)
 				d.mapping[1].external_port = d.mapping[1].local_port;
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string() << " *** Mapping 1 will be updated" << "\n";
-#endif
+
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string() << " *** Mapping 1 will be updated" << "\n";
+			}
 		}
 		boost::tie(i, boost::tuples::ignore) = m_devices.insert(d);
 	}
@@ -457,10 +503,13 @@ try
 				TORRENT_ASSERT(d.magic == 1337);
 				try
 				{
-#ifdef TORRENT_UPNP_LOGGING
-					m_log << time_now_string()
-						<< " ==> connecting to " << d.url << "\n";
-#endif
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_upnp)
+					{
+						m_log << time_now_string()
+							<< " ==> connecting to " << d.url << "\n";
+					}
+
 					if (d.upnp_connection) d.upnp_connection->close();
 					d.upnp_connection.reset(new http_connection(m_io_service
 						, m_cc, bind(&upnp::on_upnp_xml, self(), _1, _2
@@ -470,11 +519,15 @@ try
 				catch (std::exception& e)
 				{
 					(void)e;
-#ifdef TORRENT_UPNP_LOGGING
-					m_log << time_now_string()
-						<< " *** Connection failed to: " << d.url
-						<< " " << e.what() << "\n";
-#endif
+
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_upnp)
+					{
+						m_log << time_now_string()
+							<< " *** Connection failed to: " << d.url
+							<< " " << e.what() << "\n";
+					}
+
 					d.disabled = true;
 				}
 			}
@@ -504,10 +557,12 @@ void upnp::post(upnp::rootdevice const& d, std::string const& soap
 
 	d.upnp_connection->sendbuffer = header.str();
 
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " ==> sending: " << header.str() << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " ==> sending: " << header.str() << "\n";
+	}
 	
 }
 
@@ -518,10 +573,13 @@ void upnp::create_port_mapping(http_connection& c, rootdevice& d, int i)
 	if (!d.upnp_connection)
 	{
 		TORRENT_ASSERT(d.disabled);
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string() << " *** mapping (" << i
-			<< ") aborted" << "\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string() << " *** mapping (" << i
+				<< ") aborted" << "\n";
+		}
 		return;
 	}
 	
@@ -554,10 +612,13 @@ void upnp::map_port(rootdevice& d, int i)
 
 	if (!d.mapping[i].need_update)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string() << " *** mapping (" << i
-			<< ") does not need update, skipping" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string() << " *** mapping (" << i
+				<< ") does not need update, skipping" << "\n";
+		}
+
 		if (i < num_mappings - 1)
 			map_port(d, i + 1);
 		return;
@@ -566,10 +627,13 @@ void upnp::map_port(rootdevice& d, int i)
 	TORRENT_ASSERT(!d.upnp_connection);
 	TORRENT_ASSERT(d.service_namespace);
 
-#ifdef TORRENT_UPNP_LOGGING
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
 		m_log << time_now_string()
 			<< " ==> connecting to " << d.hostname << "\n";
-#endif
+	}
+
 	if (d.upnp_connection) d.upnp_connection->close();
 	d.upnp_connection.reset(new http_connection(m_io_service
 		, m_cc, bind(&upnp::on_upnp_map_response, self(), _1, _2
@@ -587,10 +651,14 @@ void upnp::delete_port_mapping(rootdevice& d, int i)
 	if (!d.upnp_connection)
 	{
 		TORRENT_ASSERT(d.disabled);
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string() << " *** unmapping (" << i
-			<< ") aborted" << "\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string() << " *** unmapping (" << i
+				<< ") aborted" << "\n";
+		}
+
 		return;
 	}
 
@@ -624,10 +692,12 @@ void upnp::unmap_port(rootdevice& d, int i)
 		}
 		return;
 	}
-#ifdef TORRENT_UPNP_LOGGING
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
 		m_log << time_now_string()
 			<< " ==> connecting to " << d.hostname << "\n";
-#endif
+	}
 
 	if (d.upnp_connection) d.upnp_connection->close();
 	d.upnp_connection.reset(new http_connection(m_io_service
@@ -708,31 +778,40 @@ void upnp::on_upnp_xml(asio::error_code const& e
 
 	if (e && e != asio::error::eof)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << d.url << ") error while fetching control url: "
-			<< e.message() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << d.url << ") error while fetching control url: "
+				<< e.message() << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
 
 	if (!p.header_finished())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << d.url << ") error while fetching control url: incomplete http message" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << d.url << ") error while fetching control url: incomplete http message" << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
 
 	if (p.status_code() != 200)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== (" << d.url << ") error while fetching control url: " << p.message() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== (" << d.url << ") error while fetching control url: " << p.message() << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
@@ -758,21 +837,26 @@ void upnp::on_upnp_xml(asio::error_code const& e
 		}
 		else
 		{
-#ifdef TORRENT_UPNP_LOGGING
-			m_log << time_now_string()
-				<< " <== (" << d.url << ") Rootdevice response, did not find "
-				"a port mapping interface" << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_upnp)
+			{
+				m_log << time_now_string()
+					<< " <== (" << d.url << ") Rootdevice response, did not find "
+					"a port mapping interface" << "\n";
+			}
+
 			d.disabled = true;
 			return;
 		}
 	}
 	
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " <== (" << d.url << ") Rootdevice response, found control URL: " << s.control_url
-		<< " namespace: " << d.service_namespace << "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " <== (" << d.url << ") Rootdevice response, found control URL: " << s.control_url
+			<< " namespace: " << d.service_namespace << "\n";
+	}
 
 	d.control_url = s.control_url;
 
@@ -857,10 +941,13 @@ void upnp::on_upnp_map_response(asio::error_code const& e
 
 	if (e && e != asio::error::eof)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== error while adding portmap: " << e.message() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== error while adding portmap: " << e.message() << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
@@ -886,10 +973,13 @@ void upnp::on_upnp_map_response(asio::error_code const& e
 
 	if (!p.header_finished())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== error while adding portmap: incomplete http message" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== error while adding portmap: incomplete http message" << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
@@ -901,13 +991,15 @@ void upnp::on_upnp_map_response(asio::error_code const& e
 	xml_parse((char*)p.get_body().begin, (char*)p.get_body().end
 		, bind(&find_error_code, _1, _2, boost::ref(s)));
 
-#ifdef TORRENT_UPNP_LOGGING
-	if (s.error_code != -1)
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
 	{
-		m_log << time_now_string()
-			<< " <== got error message: " << s.error_code << "\n";
+		if (s.error_code != -1)
+		{
+			m_log << time_now_string()
+				<< " <== got error message: " << s.error_code << "\n";
+		}
 	}
-#endif
 	
 	if (s.error_code == 725)
 	{
@@ -942,11 +1034,13 @@ void upnp::on_upnp_map_response(asio::error_code const& e
 		m_callback(0, 0, error_string);
 	}
 
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " <== map response: " << std::string(p.get_body().begin, p.get_body().end)
-		<< "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " <== map response: " << std::string(p.get_body().begin, p.get_body().end)
+			<< "\n";
+	}
 
 	if (s.error_code == -1)
 	{
@@ -1004,36 +1098,46 @@ void upnp::on_upnp_unmap_response(asio::error_code const& e
 
 	if (e && e != asio::error::eof)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== error while deleting portmap: " << e.message() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== error while deleting portmap: " << e.message() << "\n";
+		}
 	}
 
 	if (!p.header_finished())
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== error while deleting portmap: incomplete http message" << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== error while deleting portmap: incomplete http message" << "\n";
+		}
+
 		return;
 	}
 
 	if (p.status_code() != 200)
 	{
-#ifdef TORRENT_UPNP_LOGGING
-		m_log << time_now_string()
-			<< " <== error while deleting portmap: " << p.message() << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_upnp)
+		{
+			m_log << time_now_string()
+				<< " <== error while deleting portmap: " << p.message() << "\n";
+		}
+
 		d.disabled = true;
 		return;
 	}
 
-#ifdef TORRENT_UPNP_LOGGING
-	m_log << time_now_string()
-		<< " <== unmap response: " << std::string(p.get_body().begin, p.get_body().end)
-		<< "\n";
-#endif
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_upnp)
+	{
+		m_log << time_now_string()
+			<< " <== unmap response: " << std::string(p.get_body().begin, p.get_body().end)
+			<< "\n";
+	}
 
 	// ignore errors and continue with the next mapping for this device
 	if (mapping < num_mappings - 1)

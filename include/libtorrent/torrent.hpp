@@ -500,9 +500,7 @@ namespace libtorrent
 		torrent_handle get_handle() const;
 
 		// LOGGING
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		virtual void debug_log(const std::string& line);
-#endif
 
 		// DEBUG
 #ifndef NDEBUG
