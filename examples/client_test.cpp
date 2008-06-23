@@ -55,6 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/extensions/metadata_transfer.hpp"
 #include "libtorrent/extensions/ut_pex.hpp"
+#include <libtorrent/extensions/logger.hpp>
 
 #include "libtorrent/entry.hpp"
 #include "libtorrent/bencode.hpp"
@@ -73,6 +74,12 @@ using boost::bind;
 
 #include <windows.h>
 #include <conio.h>
+
+//. 2008.04.26
+//#define WEB_SEED_URL "http://221.200.112.101/download/"
+#define WEB_SEED_URL "http://192.168.1.86/download/"
+//#define WEB_SEED_URL "http://fedora.candishosting.com.cn/pub/fedora/linux/releases/8/Live/i686/Fedora-8-Live-i686.iso"
+//#define WEB_SEED_URL "http://download.actuatechina.com/eclipse/technology/epp/downloads/release/europa/winter/eclipse-rcp-europa-winter-win32.zip"
 
 bool sleep_and_input(char* c)
 {
@@ -467,9 +474,15 @@ void add_torrent(libtorrent::session& ses
 	handles.insert(std::make_pair(
 		monitored_dir?std::string(torrent):std::string(), h));
 
+	//. 2008.04.26
+	h.add_url_seed(WEB_SEED_URL);
+
+	//. 2008.05.22 by chongyc
+	//assert(! h.is_fake_torrent());
+
 	h.set_max_connections(60);
 	h.set_max_uploads(-1);
-	h.set_ratio(preferred_ratio);
+	h.set_ratio(0/*preferred_ratio*/);
 	h.set_sequenced_download_threshold(15);
 #ifndef TORRENT_DISABLE_RESOLVE_COUNTRIES
 	h.resolve_countries(true);
@@ -707,6 +720,10 @@ int main(int ac, char* av[])
 
 		settings.user_agent = "client_test/" LIBTORRENT_VERSION;
 		settings.urlseed_wait_retry = wait_retry;
+		//. 2008.04.27
+		settings.max_outstanding_disk_bytes_per_connection = 8*1024*1024;
+		settings.max_out_request_queue = 4*1024;
+		settings.max_allowed_in_request_queue = 4*1024;
 
 		std::deque<std::string> events;
 
@@ -726,6 +743,8 @@ int main(int ac, char* av[])
 		ses.start_lsd();
 		ses.add_extension(&create_metadata_plugin);
 		ses.add_extension(&create_ut_pex_plugin);
+		//. 2008.04.26
+		ses.add_extension(&libtorrent::create_logger_plugin);
 
 		ses.set_max_uploads(upload_slots_limit);
 		ses.set_max_half_open_connections(half_open_limit);
@@ -820,6 +839,35 @@ int main(int ac, char* av[])
 
 		// load the torrents given on the commandline
 		boost::regex ex("([0-9A-Fa-f]{40})@(.+)");
+		//. 2008.05.05 by chongyc
+		boost::regex ex_f("(.+\\/)([\\d\\w\\.-]+)@(.+)");
+
+		std::string webseed = WEB_SEED_URL;
+		const char* free_trackers[] = {
+
+			// public free tracker (http 80 port)
+			"http://vip.tracker.thepiratebay.org/announce"
+			, "http://tv.tracker.thepiratebay.org:80/announce"
+			, "http://open.tracker.thepiratebay.org/announce"
+			, "http://tpb.tracker.thepiratebay.org/announce"
+			, "http://www.sumotracker.com/announce"
+			, "http://www.sumotracker.org/announce"
+			, "http://pirates.sumotracker.com/announce"
+
+			// public free tracker
+			, "http://denis.stalker.h3q.com:6969/announce"
+			, "udp://denis.stalker.h3q.com:6969/announce"
+
+			// non-public free tracker
+			,  "http://torrent.fedoraproject.org:6969/announce"
+
+			// other tracker
+			, "http://www.torrent-downloads.to:2710/announce"
+
+			// end mark 
+			, 0
+		};
+
 		for (std::vector<std::string>::const_iterator i = input.begin();
 			i != input.end(); ++i)
 		{
@@ -827,24 +875,120 @@ int main(int ac, char* av[])
 			{
 				// first see if this is a torrentless download
 				boost::cmatch what;
-				if (boost::regex_match(i->c_str(), what, ex))
+				//. 2008.05.05 by chongyc
+				if (boost::regex_match(i->c_str(), what, ex)
+					|| boost::regex_match(i->c_str(), what, ex_f))
 				{
+#if 0
 					sha1_hash info_hash = boost::lexical_cast<sha1_hash>(what[1]);
 
 					torrent_handle h = ses.add_torrent(std::string(what[2]).c_str()
 						, info_hash, 0, save_path, entry(), compact_allocation_mode ? storage_mode_compact
 						: storage_mode_sparse);
+#else
+					std::string name = what[2];
+					std::string webseed = what[1];
+					std::string tracker = what[3];
+					std::string url = webseed + name;
+					std::string file_id = url + "\n";
+
+					boost::intrusive_ptr<torrent_info> t(new torrent_info);
+					path full_path = path(name);
+					//ofstream out(complete(path(torrent_file)), std::ios_base::binary);
+
+					int piece_size = 1024 * 1024;
+					char const* creator_str = "zp2p";
+
+					// total size of file
+					__int64 total_size = (__int64)1*1024*1024*1024;
+					t->add_file(full_path, total_size);
+
+					t->set_piece_size(piece_size);
+
+					//file_pool fp;
+					//boost::scoped_ptr<storage_interface> st(
+					//	default_storage_constructor(t, full_path.branch_path(), fp));
+
+					//t->add_tracker(tracker.c_str());
+
+					// calculate the hash for all pieces
+					int num = t->num_pieces();
+					//std::vector<char> buf(piece_size);
+					file_id += boost::lexical_cast<std::string, __int64>(total_size);
+					const char *buf = file_id.c_str();
+					hasher hash_value(&buf[0], file_id.length());
+					for (int i = 0; i < num; ++i)
+					{
+						//st->read(&buf[0], i, 0, t->piece_size(i));
+						//hasher h(&buf[0], t->piece_size(i));
+						t->set_hash(i, hash_value.final());
+						std::cerr << (i+1) << "/" << num << "\r";
+					}
+
+					t->set_creator(creator_str);
+
+					//if (url_seed != NULL)
+					//	t->add_url_seed(url_seed);
+
+					assert(! t->is_fake_torrent());
+					t->fake_torrent(true);
+					assert(t->is_fake_torrent());
+
+					// create the torrent and print it to out
+					entry e = t->create_torrent();
+					//libtorrent::bencode(std::ostream_iterator<char>(out), e);
+					assert(t->is_fake_torrent());
+
+					entry resume_data;
+					try
+					{
+						std::stringstream s;
+						s << t->name() << ".fastresume";
+						boost::filesystem::ifstream resume_file(save_path / s.str(), std::ios_base::binary);
+						resume_file.unsetf(std::ios_base::skipws);
+						resume_data = bdecode(
+							std::istream_iterator<char>(resume_file)
+							, std::istream_iterator<char>());
+					}
+					catch (invalid_encoding&) {}
+					catch (boost::filesystem::filesystem_error&) {}
+
+					torrent_handle h = ses.add_torrent(t
+						, save_path, resume_data, true ? storage_mode_compact
+						: storage_mode_sparse);
+
+#endif
 					handles.insert(std::make_pair(std::string(), h));
+
+					//. 2008.04.26
+					//h.add_url_seed(webseed.c_str());
+					h.add_url_seed(url.c_str());
+					//. 2008.05.21 by chongyc
+					// add trackers
+					{
+						std::vector<announce_entry> _trackers = h.trackers();
+						for (int i = 0; 0 != free_trackers[i]; ++i)
+							_trackers.push_back(announce_entry(free_trackers[i]));
+						h.replace_trackers(_trackers);
+					}
+
+					//. 2008.05.22 by chongyc
+					//assert(! h.is_fake_torrent());
+					//h.fake_torrent(true);
+					//assert(h.is_fake_torrent());
 
 					h.set_max_connections(60);
 					h.set_max_uploads(-1);
-					h.set_ratio(preferred_ratio);
+					h.set_ratio(0/*preferred_ratio*/);
 					h.set_sequenced_download_threshold(15);
-					continue;
+					//continue;
 				}
+				else
+				{
 				// if it's a torrent file, open it as usual
 				add_torrent(ses, handles, i->c_str(), preferred_ratio
 					, compact_allocation_mode ? storage_mode_compact : storage_mode_sparse, save_path, false);
+			}
 			}
 			catch (std::exception& e)
 			{
@@ -936,6 +1080,9 @@ int main(int ac, char* av[])
 			while (a.get())
 			{
 				std::stringstream event_string;
+				//. 2008.04.28 by chongyc
+				bool ignore = false;
+
 				if (a->severity() == alert::fatal)
 					event_string << esc("31"); // red
 				else if (a->severity() == alert::warning)
@@ -958,10 +1105,6 @@ int main(int ac, char* av[])
 					event_string << p->handle.get_torrent_info().name() << ": "
 						<< a->msg();
 				}
-				else if (peer_error_alert* p = dynamic_cast<peer_error_alert*>(a.get()))
-				{
-					event_string << identify_client(p->pid) << ": " << a->msg();
-				}
 				else if (invalid_request_alert* p = dynamic_cast<invalid_request_alert*>(a.get()))
 				{
 					event_string << identify_client(p->pid) << ": " << a->msg();
@@ -982,6 +1125,33 @@ int main(int ac, char* av[])
 				{
 					event_string << "(" << p->ip << ") " << p->msg();
 				}
+				//. 2008.04.28 by chongyc
+				else if (block_downloading_alert* p = dynamic_cast<block_downloading_alert*>(a.get()))
+				{
+					//event_string << p->msg();
+					ignore = true;
+				}
+				//. 2008.04.28 by chongyc
+				else if (block_finished_alert* p = dynamic_cast<block_finished_alert*>(a.get()))
+				{
+					//event_string << p->msg();
+					ignore = true;
+				}
+				//. 2008.04.28 by chongyc
+				else if (piece_finished_alert* p = dynamic_cast<piece_finished_alert*>(a.get()))
+				{
+					libtorrent::torrent_status s = p->handle.status();
+					event_string << "piece_finished_alert: " << p->msg() << " [" << p->piece_index << "] => " << s.num_pieces << "/" << s.pieces->size();
+
+					//event_string << p->msg();
+					//ignore = true;
+					//(void)0;
+				}
+				//. 2008.04.28 by chongyc
+				else if (peer_error_alert* p = dynamic_cast<peer_error_alert*>(a.get()))
+				{
+					event_string << "peer_error_alert: " << p->msg() << " => " << p->ip.address() << ":" << p->ip.port();
+				}
 				else if (torrent_alert* p = dynamic_cast<torrent_alert*>(a.get()))
 				{
 					std::string name;
@@ -992,8 +1162,12 @@ int main(int ac, char* av[])
 				{
 					event_string << a->msg();
 				}
+				
+				if (!ignore)
+				{
 				event_string << esc("0");
 				events.push_back(event_string.str());
+				}
 
 				if (events.size() >= 20) events.pop_front();
 				a = ses.pop_alert();
@@ -1070,7 +1244,21 @@ int main(int ac, char* av[])
 						<< "seeds: " << s.num_seeds << " "
 						<< "distributed copies: " << s.distributed_copies << "\n"
 						<< "  download: " << esc("32") << (s.download_rate > 0 ? add_suffix(s.download_rate) + "/s ": "         ") << esc("0")
-						<< "(" << esc("32") << add_suffix(s.total_download) << esc("0") << ") ";
+						<< "(" << esc("32") << add_suffix(s.total_download) << esc("0") << ") "
+						<< "  webseed download: " << esc("32") << add_suffix(s.webseed_total_download) << esc("0") 
+						<< "(" << esc("32") << add_suffix(s.webseed_total_download - s.webseed_total_payload_download) << esc("0") << ") ";
+
+					//. 2008.04.28 by chongyc
+					// write to file
+					{
+						std::ofstream f;
+						f.open("stat.log", std::ios_base::out | std::ios_base::app);
+						f << time_now_string() << " , " << h.name() << " , "
+							<< (s.total_download/1024) << "KB , " 
+							<< ((s.total_download - s.webseed_total_download)/1024) << "KB , " 
+							<< (s.webseed_total_download/1024) << "KB" <<  std::endl;
+						f.close();
+					}
 				}
 				else
 				{
@@ -1188,7 +1376,13 @@ int main(int ac, char* av[])
 			, std::ios_base::binary);
 		out.unsetf(std::ios_base::skipws);
 		bencode(std::ostream_iterator<char>(out), dht_state);
+
+		ses.stop_dht();
 #endif
+
+		ses.stop_lsd();
+		ses.stop_natpmp();
+		ses.stop_upnp();
 	}
 	catch (std::exception& e)
 	{
@@ -1198,3 +1392,9 @@ int main(int ac, char* av[])
 	return 0;
 }
 
+std::string GetHomePath()
+{
+	std::string homepath = ".";
+
+	return homepath;
+}

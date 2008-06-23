@@ -95,8 +95,9 @@ size_type routing_table::num_global_nodes() const
 }
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-
-void routing_table::print_state(std::ostream& os) const
+//. 2008.06.21 by chongyc
+//void routing_table::print_state(std::ostream& os) const
+void routing_table::print_state(libtorrent::dht::log& os) const
 {
 	os << "kademlia routing table state\n"
 		<< "bucket_size: " << m_bucket_size << "\n"

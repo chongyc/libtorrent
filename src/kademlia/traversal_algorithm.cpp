@@ -35,6 +35,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <libtorrent/kademlia/traversal_algorithm.hpp>
 #include <libtorrent/kademlia/routing_table.hpp>
 #include <libtorrent/kademlia/rpc_manager.hpp>
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 #include <boost/bind.hpp>
 
@@ -75,7 +77,11 @@ void traversal_algorithm::add_entry(node_id const& id, udp::endpoint addr, unsig
 		TORRENT_ASSERT(std::find_if(m_results.begin(), m_results.end()
 			, bind(&result::id, _1) == id) == m_results.end());
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(traversal) << "adding result: " << id << " " << addr;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(traversal) << "adding result: " << id << " " << addr;
+		}
 #endif
 		m_results.insert(i, entry);
 	}
@@ -89,7 +95,11 @@ boost::pool<>& traversal_algorithm::allocator() const
 void traversal_algorithm::traverse(node_id const& id, udp::endpoint addr)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(traversal) << "node returned a list which included a node with id 0";
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(traversal) << "node returned a list which included a node with id 0";
+	}
 #endif
 	add_entry(id, addr, 0);
 }
@@ -126,7 +136,11 @@ void traversal_algorithm::failed(node_id const& id, bool prevent_request)
 		TORRENT_ASSERT(i->flags & result::queried);
 		m_failed.insert(i->addr);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(traversal) << "failed: " << i->id << " " << i->addr;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(traversal) << "failed: " << i->id << " " << i->addr;
+		}
 #endif
 		// don't tell the routing table about
 		// node ids that we just generated ourself
@@ -167,7 +181,11 @@ void traversal_algorithm::add_requests()
 			)
 		);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(traversal) << "nodes left (" << this << "): " << (last_iterator() - i);
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(traversal) << "nodes left (" << this << "): " << (last_iterator() - i);
+		}
 #endif
 
 		if (i == last_iterator()) break;

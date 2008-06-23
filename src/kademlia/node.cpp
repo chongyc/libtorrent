@@ -50,11 +50,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/kademlia/refresh.hpp"
 #include "libtorrent/kademlia/closest_nodes.hpp"
 #include "libtorrent/kademlia/find_data.hpp"
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 using boost::bind;
 
 namespace libtorrent { namespace dht
 {
+	//. 2008.06.21 by chongyc
+	using namespace libtorrent;
 
 #ifdef _MSC_VER
 namespace
@@ -82,7 +86,11 @@ void purge_peers(std::set<peer_entry>& peers)
 		if (i->added + minutes(int(announce_interval * 1.5f)) < time_now())
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(node) << "peer timed out at: " << i->addr.address();
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(node) << "peer timed out at: " << i->addr.address();
+			}
 #endif
 			peers.erase(i++);
 		}
@@ -111,7 +119,11 @@ bool node_impl::verify_token(msg const& m)
 	if (m.write_token.type() != entry::string_t)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(node) << "token of incorrect type " << m.write_token.type();
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(node) << "token of incorrect type " << m.write_token.type();
+		}
 #endif
 		return false;
 	}
@@ -119,7 +131,11 @@ bool node_impl::verify_token(msg const& m)
 	if (token.length() != 4)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(node) << "token of incorrect length: " << token.length();
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(node) << "token of incorrect length: " << token.length();
+		}
 #endif
 		return false;
 	}
@@ -175,10 +191,14 @@ void node_impl::bootstrap(std::vector<udp::endpoint> const& nodes
 	, boost::function0<void> f)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(node) << "bootrapping: " << nodes.size();
-	for (std::vector<udp::endpoint>::const_iterator i = nodes.begin()
-		, end(nodes.end()); i != end; ++i)
-		TORRENT_LOG(node) << "  " << *i;
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(node) << "bootrapping: " << nodes.size();
+		for (std::vector<udp::endpoint>::const_iterator i = nodes.begin()
+			, end(nodes.end()); i != end; ++i)
+			TORRENT_LOG(node) << "  " << *i;
+	}
 #endif
 	std::vector<node_entry> start;
 	start.reserve(nodes.size());
@@ -261,9 +281,13 @@ namespace
 		, boost::function<void(std::vector<tcp::endpoint> const&, sha1_hash const&)> f)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(node) << "announce response [ ih: " << ih
-			<< " p: " << listen_port
-			<< " nodes: " << v.size() << " ]" ;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(node) << "announce response [ ih: " << ih
+				<< " p: " << listen_port
+				<< " nodes: " << v.size() << " ]" ;
+		}
 #endif
 		bool nodes = false;
 		// only store on the first k nodes
@@ -283,7 +307,11 @@ namespace
 void node_impl::add_router_node(udp::endpoint router)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(node) << "adding router node: " << router;
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(node) << "adding router node: " << router;
+	}
 #endif
 	m_table.add_router_node(router);
 }
@@ -303,7 +331,11 @@ void node_impl::announce(sha1_hash const& info_hash, int listen_port
 	, boost::function<void(std::vector<tcp::endpoint> const&, sha1_hash const&)> f)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(node) << "announcing [ ih: " << info_hash << " p: " << listen_port << " ]" ;
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(node) << "announcing [ ih: " << info_hash << " p: " << listen_port << " ]" ;
+	}
 #endif
 	// search for nodes with ids close to id, and then invoke the
 	// get_peers and then announce_peer rpc on them.
@@ -333,7 +365,11 @@ time_duration node_impl::refresh_timeout()
 		{
 			TORRENT_ASSERT(refresh > -1);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(node) << "refreshing bucket: " << refresh;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(node) << "refreshing bucket: " << refresh;
+			}
 #endif
 			refresh_bucket(refresh);
 		}
@@ -350,7 +386,11 @@ time_duration node_impl::refresh_timeout()
 		next_refresh = min_next_refresh;
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(node) << "next refresh: " << total_seconds(next_refresh) << " seconds";
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
+	{
+		TORRENT_LOG(node) << "next refresh: " << total_seconds(next_refresh) << " seconds";
+	}
 #endif
 
 	return next_refresh;
@@ -433,10 +473,14 @@ bool node_impl::on_find(msg const& m, std::vector<tcp::endpoint>& peers) const
 		, std::back_inserter(peers), num);
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	for (std::vector<tcp::endpoint>::iterator i = peers.begin()
-		, end(peers.end()); i != end; ++i)
+	//. 2008.06.21 by chongyc
+	if (logger_setting::log_dht)
 	{
-		TORRENT_LOG(node) << "   " << *i;
+		for (std::vector<tcp::endpoint>::iterator i = peers.begin()
+			, end(peers.end()); i != end; ++i)
+		{
+			TORRENT_LOG(node) << "   " << *i;
+		}
 	}
 #endif
 	return true;
@@ -465,10 +509,14 @@ void node_impl::incoming_request(msg const& m)
 				// return nodes instead
 				m_table.find_node(m.info_hash, reply.nodes, false);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-				for (std::vector<node_entry>::iterator i = reply.nodes.begin()
-					, end(reply.nodes.end()); i != end; ++i)
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_dht)
 				{
-					TORRENT_LOG(node) << "	" << i->id << " " << i->addr;
+					for (std::vector<node_entry>::iterator i = reply.nodes.begin()
+						, end(reply.nodes.end()); i != end; ++i)
+					{
+						TORRENT_LOG(node) << "	" << i->id << " " << i->addr;
+					}
 				}
 #endif
 			}
@@ -480,10 +528,14 @@ void node_impl::incoming_request(msg const& m)
 
 			m_table.find_node(m.info_hash, reply.nodes, false);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			for (std::vector<node_entry>::iterator i = reply.nodes.begin()
-				, end(reply.nodes.end()); i != end; ++i)
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
 			{
-				TORRENT_LOG(node) << "	" << i->id << " " << i->addr;
+				for (std::vector<node_entry>::iterator i = reply.nodes.begin()
+					, end(reply.nodes.end()); i != end; ++i)
+				{
+					TORRENT_LOG(node) << "	" << i->id << " " << i->addr;
+				}
 			}
 #endif
 		}

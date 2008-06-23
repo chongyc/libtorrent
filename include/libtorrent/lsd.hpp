@@ -43,10 +43,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
-
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-#include <fstream>
-#endif
+//. 2008.05.20 by chongyc
+#include "libtorrent/debug.hpp"
 
 namespace libtorrent
 {
@@ -86,9 +84,9 @@ private:
 	deadline_timer m_broadcast_timer;
 
 	bool m_disabled;
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	std::ofstream m_log;
-#endif
+
+	//. 2008.06.21 by chongyc
+	libtorrent::logger	m_log;
 };
 
 }

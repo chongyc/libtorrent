@@ -139,9 +139,8 @@ namespace libtorrent
 
 		tcp::endpoint m_tracker_address;
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		virtual void debug_log(const std::string& line) = 0;
-#endif
+
 	private:
 		tracker_manager* m_manager;
 	};

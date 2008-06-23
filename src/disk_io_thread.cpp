@@ -51,13 +51,15 @@ namespace libtorrent
 		, m_block_size(block_size)
 #endif
 		, m_disk_io_thread(boost::ref(*this))
-	{
 #ifdef TORRENT_STATS
-		m_allocations = 0;
+		, m_allocations(0)
 #endif
 #ifdef TORRENT_DISK_STATS
-		m_log.open("disk_io_thread.log", std::ios::trunc);
+		//. 2008.05.16 by chongyc
+		, m_log(GetHomePath(), "disk_io_thread.log", 0)
+		//m_log.open("disk_io_thread.log", std::ios::trunc);
 #endif
+	{
 	}
 
 	disk_io_thread::~disk_io_thread()
@@ -232,7 +234,7 @@ namespace libtorrent
 		for (;;)
 		{
 #ifdef TORRENT_DISK_STATS
-			m_log << log_time() << " idle" << std::endl;
+			m_log << log_time() << " idle" << "\n";
 #endif
 			mutex_t::scoped_lock l(m_mutex);
 #ifndef NDEBUG
@@ -267,7 +269,7 @@ namespace libtorrent
 				{
 					case disk_io_job::read:
 #ifdef TORRENT_DISK_STATS
-						m_log << log_time() << " read " << j.buffer_size << std::endl;
+						m_log << log_time() << " read " << j.buffer_size << "\n";
 #endif
 						free_current_buffer = false;
 						if (j.buffer == 0)
@@ -289,7 +291,7 @@ namespace libtorrent
 						break;
 					case disk_io_job::write:
 #ifdef TORRENT_DISK_STATS
-						m_log << log_time() << " write " << j.buffer_size << std::endl;
+						m_log << log_time() << " write " << j.buffer_size << "\n";
 #endif
 						TORRENT_ASSERT(j.buffer);
 						TORRENT_ASSERT(j.buffer_size <= m_block_size);
@@ -302,7 +304,7 @@ namespace libtorrent
 					case disk_io_job::hash:
 						{
 #ifdef TORRENT_DISK_STATS
-							m_log << log_time() << " hash" << std::endl;
+							m_log << log_time() << " hash" << "\n";
 #endif
 							sha1_hash h = j.storage->hash_for_piece_impl(j.piece);
 							j.str.resize(20);
@@ -311,20 +313,21 @@ namespace libtorrent
 						break;
 					case disk_io_job::move_storage:
 #ifdef TORRENT_DISK_STATS
-						m_log << log_time() << " move" << std::endl;
+						m_log << log_time() << " move" << "\n";
 #endif
 						ret = j.storage->move_storage_impl(j.str) ? 1 : 0;
 						j.str = j.storage->save_path().string();
 						break;
 					case disk_io_job::release_files:
 #ifdef TORRENT_DISK_STATS
-						m_log << log_time() << " release" << std::endl;
+						m_log << log_time() << " release" << "\n";
 #endif
 						j.storage->release_files_impl();
 						break;
 					case disk_io_job::delete_files:
 #ifdef TORRENT_DISK_STATS
-						m_log << log_time() << " delete" << std::endl;
+						//. 2008.05.16 by chongyc
+						m_log << log_time() << " delete" << "\n";
 #endif
 						j.storage->delete_files_impl();
 						break;

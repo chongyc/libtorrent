@@ -507,9 +507,7 @@ namespace libtorrent
 		torrent_handle get_handle() const;
 
 		// LOGGING
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		virtual void debug_log(const std::string& line);
-#endif
 
 		// DEBUG
 #ifndef NDEBUG
@@ -533,6 +531,10 @@ namespace libtorrent
 		int max_connections() const { return m_max_connections; }
 		void move_storage(fs::path const& save_path);
 
+		//. 2008.06.19 by chongyc
+		void set_max_webseed_connections(int limit);
+		int max_webseed_connections() const { return m_max_webseed_connections; }
+
 		// unless this returns true, new connections must wait
 		// with their initialization.
 		bool ready_for_connections() const
@@ -548,6 +550,11 @@ namespace libtorrent
 
 	private:
 
+		//. 2008.05.20 by chongyc
+		bool is_fake_torrent();
+		//x 2008.06.03 by chongyc
+		//void fake_torrent(bool fake);
+	
 		void on_files_deleted(int ret, disk_io_job const& j);
 		void on_files_released(int ret, disk_io_job const& j);
 		void on_torrent_paused(int ret, disk_io_job const& j);
@@ -555,7 +562,6 @@ namespace libtorrent
 
 		void on_piece_verified(int ret, disk_io_job const& j
 			, boost::function<void(bool)> f);
-	
 		void try_next_tracker();
 		int prioritize_tracker(int tracker_index);
 		void on_country_lookup(asio::error_code const& error, tcp::resolver::iterator i
@@ -636,6 +642,9 @@ namespace libtorrent
 		// The list of web seeds in this torrent. Seeds
 		// with fatal errors are removed from the set
 		std::set<std::string> m_web_seeds;
+
+		//. 2008.06.19 by chongyc
+		int m_max_webseed_connections;
 
 		// a list of web seeds that have failed and are
 		// waiting to be retried

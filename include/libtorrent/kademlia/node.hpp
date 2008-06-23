@@ -197,7 +197,9 @@ public:
 	int data_size() const { return int(m_map.size()); }
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	void print_state(std::ostream& os) const
+	//. 2008.06.21 by chongyc
+	void print_state(libtorrent::dht::log& os) const
+	//void print_state(std::ostream& os) const
 	{ m_table.print_state(os); }
 #endif
 

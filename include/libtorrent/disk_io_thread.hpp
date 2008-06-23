@@ -46,6 +46,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/noncopyable.hpp>
 #include <list>
 #include "libtorrent/config.hpp"
+//. 2008.05.20 by chongyc
+#include "libtorrent/debug.hpp"
 
 namespace libtorrent
 {
@@ -146,7 +148,9 @@ namespace libtorrent
 #endif
 
 #ifdef TORRENT_DISK_STATS
-		std::ofstream m_log;
+		//. 2008.05.20 by chongyc
+		libtorrent::logger	m_log;
+		//std::ofstream m_log;
 #endif
 #ifdef TORRENT_STATS
 		int m_allocations;

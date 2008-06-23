@@ -47,7 +47,12 @@ namespace libtorrent
 {
 	struct torrent_plugin;
 	class torrent;
+	//. 2008.05.20 by chongyc
+#if 0
 	boost::shared_ptr<torrent_plugin> create_logger_plugin(torrent*);
+#else
+	boost::shared_ptr<torrent_plugin> create_logger_plugin(torrent*, void*);
+#endif
 }
 
 #endif // TORRENT_LOGGER_HPP_INCLUDED

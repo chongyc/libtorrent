@@ -88,6 +88,8 @@ namespace libtorrent
 			, total_upload(0)
 			, total_payload_download(0)
 			, total_payload_upload(0)
+			, webseed_total_download(0)			//. 2008.05.20 by chongyc
+			, webseed_total_payload_download(0)	//. 2008.05.20 by chongyc
 			, total_failed_bytes(0)
 			, total_redundant_bytes(0)
 			, download_rate(0)
@@ -145,6 +147,10 @@ namespace libtorrent
 		size_type total_payload_download;
 		size_type total_payload_upload;
 
+		//. 2008.05.20 by chongyc
+		size_type webseed_total_download;
+		size_type webseed_total_payload_download;
+
 		// the amount of payload bytes that
 		// has failed their hash test
 		size_type total_failed_bytes;
@@ -162,6 +168,13 @@ namespace libtorrent
 		// sent and received
 		float download_payload_rate;
 		float upload_payload_rate;
+
+		// 2008.05.10 by chongyc
+		// average download rate, upload rate, webseed rate, and elapsed time
+		float average_download_rate;
+		float average_upload_rate;
+		float average_webseed_rate;
+		float elapsed_time;
 
 		// the number of peers this torrent is connected to
 		// that are seeding.
@@ -305,6 +318,11 @@ namespace libtorrent
 		const torrent_info& get_torrent_info() const;
 		bool is_valid() const;
 
+		//. 2008.05.22 by chongyc
+		//x 2008.06.03 by chongyc
+		//bool is_fake_torrent();
+		//void fake_torrent(bool fake);
+
 		bool is_seed() const;
 		bool is_finished() const;
 		bool is_paused() const;
@@ -397,6 +415,9 @@ namespace libtorrent
 
 		// -1 means unlimited connections
 		void set_max_connections(int max_connections) const;
+
+		//. 2008.06.19 by chongyc
+		void set_max_webseed_connections(int max_connections) const;
 
 		void set_tracker_login(std::string const& name
 			, std::string const& password) const;

@@ -202,6 +202,7 @@ namespace libtorrent
 		, m_max_uploads((std::numeric_limits<int>::max)())
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
+		, m_max_webseed_connections(1)	//. 2008.06.19 by chongyc
 		, m_policy(this)
 	{
 #ifndef NDEBUG
@@ -264,6 +265,7 @@ namespace libtorrent
 		, m_max_uploads((std::numeric_limits<int>::max)())
 		, m_num_uploads(0)
 		, m_max_connections((std::numeric_limits<int>::max)())
+		, m_max_webseed_connections(1)	//. 2008.06.19 by chongyc
 		, m_policy(this)
 	{
 #ifndef NDEBUG
@@ -865,8 +867,9 @@ namespace libtorrent
 		}
 
 #ifndef NDEBUG
-
-		if (total_done >= m_torrent_file->total_size())
+		//. 2008.06.02 by chongyc	
+		//if (total_done >= m_torrent_file->total_size())
+		if (total_done >= m_torrent_file->total_size() && false)
 		{
 			// Thist happens when a piece has been downloaded completely
 			// but not yet verified against the hash
@@ -2734,6 +2737,8 @@ namespace libtorrent
 #ifndef NDEBUG
 	void torrent::check_invariant() const
 	{
+//. 2008.05.20
+#ifndef TORRENT_DISABLE_INVARIANT_CHECKS
 		session_impl::mutex_t::scoped_lock l(m_ses.m_mutex);
 
 		TORRENT_ASSERT(m_bandwidth_queue[0].size() <= m_connections.size());
@@ -2841,6 +2846,7 @@ namespace libtorrent
 		TORRENT_ASSERT(!valid_metadata() || m_block_size > 0);
 		TORRENT_ASSERT(!valid_metadata() || (m_torrent_file->piece_length() % m_block_size) == 0);
 //		if (is_seed()) TORRENT_ASSERT(m_picker.get() == 0);
+#endif
 	}
 #endif
 
@@ -2868,7 +2874,72 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(limit >= -1);
 		if (limit <= 0) limit = (std::numeric_limits<int>::max)();
+
+		//. 2008.06.19 by chongyc
+		assert(max_webseed_connections() > 0);
+		assert(max_webseed_connections() < 10);
+
+		if (limit < (std::numeric_limits<int>::max)())
+		{
+			if (m_max_connections < (std::numeric_limits<int>::max)())
+			{
+				int peer_limit = m_max_connections - max_webseed_connections();
+
+				assert(peer_limit >= 3);
+				if (peer_limit < 3) peer_limit = 3;
+
+				if (limit < ((std::numeric_limits<int>::max)() - peer_limit))
+					limit += peer_limit;
+				else
+					limit = (std::numeric_limits<int>::max)();
+			}
+			else if (limit < max_webseed_connections() + 3)
+			{
+				limit = max_webseed_connections() + 3;
+			}
+		}
+
+		assert(limit > 0);
+		assert(limit <= (std::numeric_limits<int>::max)());
+
 		m_max_connections = limit;
+	}
+
+	//. 2008.06.19 by chongyc	
+	void torrent::set_max_webseed_connections(int limit)
+	{
+		TORRENT_ASSERT(limit >= 1);
+		if (limit < 1) limit = 1;
+		else if (limit > 10) limit = 10;
+
+		assert(max_webseed_connections() < max_connections());
+
+		if (max_connections() < (std::numeric_limits<int>::max)())
+		{
+			int delta = limit - m_max_webseed_connections;
+			int old_limit = max_connections();
+			int peer_limit = max_connections() - m_max_webseed_connections;
+			int new_limit; 
+
+			assert(peer_limit >= 3);
+
+			if (delta > 0)
+			{
+				if (old_limit < ((std::numeric_limits<int>::max)() - delta))
+					new_limit = old_limit + delta;
+				else
+					new_limit = (std::numeric_limits<int>::max)();
+
+				set_max_connections(new_limit);
+			}
+			else if (delta < 0)
+			{
+				set_max_connections(peer_limit + limit);
+			}
+		}
+		m_max_webseed_connections = limit;
+
+		assert(max_webseed_connections() < max_connections());
 	}
 
 	void torrent::set_peer_upload_limit(tcp::endpoint ip, int limit)
@@ -3027,7 +3098,9 @@ namespace libtorrent
 		if (m_paused)
 		{
 			// let the stats fade out to 0
- 			m_stat.second_tick(tick_interval);
+			//. 2008.06.02 by chongyc
+ 			//m_stat.second_tick(tick_interval);
+			m_stat.second_tick(tick_interval, m_paused);
 			return;
 		}
 
@@ -3051,6 +3124,7 @@ namespace libtorrent
 			// keep trying web-seeds if there are any
 			// first find out which web seeds we are connected to
 			std::set<std::string> web_seeds;
+			int num_webseed_connections = 0;	//. 2008.06.19 by chongyc
 			for (peer_iterator i = m_connections.begin();
 				i != m_connections.end(); ++i)
 			{
@@ -3058,6 +3132,9 @@ namespace libtorrent
 					= dynamic_cast<web_peer_connection*>(*i);
 				if (!p) continue;
 				web_seeds.insert(p->url());
+
+				//. 2008.06.19 by chongyc
+				++num_webseed_connections;
 			}
 
 			for (std::set<std::string>::iterator i = m_resolving_web_seeds.begin()
@@ -3073,6 +3150,13 @@ namespace libtorrent
 			// connect to all of those that we aren't connected to
 			std::for_each(not_connected_web_seeds.begin(), not_connected_web_seeds.end()
 				, bind(&torrent::connect_to_url_seed, this, _1));
+
+			//. 2008.06.19 by chongyc
+			if (num_webseed_connections > 0 && num_webseed_connections < m_max_webseed_connections)
+			{
+				std::for_each(web_seeds.begin(), web_seeds.end()
+					, bind(&torrent::connect_to_url_seed, this, _1));
+			}
 		}
 		
 		for (peer_iterator i = m_connections.begin();
@@ -3098,7 +3182,9 @@ namespace libtorrent
 			}
 		}
 		accumulator += m_stat;
-		m_stat.second_tick(tick_interval);
+		//. 2008.06.02 by chongyc
+		//m_stat.second_tick(tick_interval);
+		m_stat.second_tick(tick_interval, m_paused);
 
 		m_time_scaler--;
 		if (m_time_scaler <= 0)
@@ -3137,12 +3223,38 @@ namespace libtorrent
 #endif
 	}
 
+	//. 2008.05.20 by chongyc
+	bool torrent::is_fake_torrent()
+	{
+		//. 2008.06.03 by chongyc
+		return m_torrent_file->is_fake_torrent();
+	}
+
+	//. 2008.05.22 by chongyc
+	//x 2008.06.03 by chongyc
+	//void torrent::fake_torrent(bool fake)
+	//{
+	//	//. 2008.06.03 by chongyc
+	//	m_torrent_file->fake_torrent(fake);
+	//}
+
 	void torrent::on_piece_verified(int ret, disk_io_job const& j
 		, boost::function<void(bool)> f)
 	{
 		sha1_hash h(j.str);
 		session_impl::mutex_t::scoped_lock l(m_ses.m_mutex);
-		f(m_torrent_file->hash_for_piece(j.piece) == h);
+
+		//. 2008.05.20 by chongyc
+		if (is_fake_torrent())
+		{
+			f(true);
+			//. 2008.06.03 by chongyc
+			//m_torrent_file->set_hash(j.piece, h);
+		}
+		else
+		{
+			f(m_torrent_file->hash_for_piece(j.piece) == h);
+		}
 	}
 
 	const tcp::endpoint& torrent::current_tracker() const
@@ -3218,6 +3330,11 @@ namespace libtorrent
 		boost::tie(st.total_done, st.total_wanted_done) = bytes_done();
 		TORRENT_ASSERT(st.total_done >= st.total_wanted_done);
 
+		//. 2008.05.20 by chongyc
+		st.webseed_total_payload_download = m_stat.webseed_total_payload_download();
+		st.webseed_total_download = m_stat.webseed_total_payload_download()
+			+ m_stat.webseed_total_protocol_download();
+
 		// payload transfer
 		st.total_payload_download = m_stat.total_payload_download();
 		st.total_payload_upload = m_stat.total_payload_upload();
@@ -3237,6 +3354,12 @@ namespace libtorrent
 		st.upload_rate = m_stat.upload_rate();
 		st.download_payload_rate = m_stat.download_payload_rate();
 		st.upload_payload_rate = m_stat.upload_payload_rate();
+
+		//. 2008.05.20 by chongyc
+		st.average_download_rate = m_stat.average_download_rate();
+		st.average_upload_rate = m_stat.average_upload_rate();
+		st.average_webseed_rate = m_stat.average_webseed_rate();
+		st.elapsed_time = m_stat.elapsed_time();
 
 		st.next_announce = boost::posix_time::seconds(
 			total_seconds(next_announce() - time_now()));
@@ -3402,12 +3525,10 @@ namespace libtorrent
 	}
 
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 	void torrent::debug_log(const std::string& line)
 	{
 		(*m_ses.m_logger) << time_now_string() << " " << line << "\n";
 	}
-#endif
 
 }
 

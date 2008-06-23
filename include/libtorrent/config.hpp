@@ -89,5 +89,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_USE_WPATH 0
 #endif
 
+//. 2008.06.04 by chongyc
+#include <string>
+
+std::string GetHomePath();
+
 #endif // TORRENT_CONFIG_HPP_INCLUDED
 

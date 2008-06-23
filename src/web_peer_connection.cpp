@@ -74,14 +74,20 @@ namespace libtorrent
 		// we can request more bytes at once
 		request_large_blocks(true);
 		// we only want left-over bandwidth
+		//. 2008.05.20 by chongyc
+#if 0
 		set_priority(0);
+#else
+		set_priority(3);
+#endif
 		shared_ptr<torrent> tor = t.lock();
 		TORRENT_ASSERT(tor);
 		int blocks_per_piece = tor->torrent_file().piece_length() / tor->block_size();
 
 		// we always prefer downloading 1 MB chunks
 		// from web seeds
-		prefer_whole_pieces((1024 * 1024) / tor->torrent_file().piece_length());
+		//. 2008.05.20 by chongyc
+		prefer_whole_pieces((4 * 1024 * 1024) / tor->torrent_file().piece_length());
 		
 		// multiply with the blocks per piece since that many requests are
 		// merged into one http request
@@ -91,9 +97,12 @@ namespace libtorrent
 		// since this is a web seed, change the timeout
 		// according to the settings.
 		set_timeout(ses.settings().urlseed_timeout);
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << "*** web_peer_connection\n";
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_web_connection)
+		{
+			(*m_logger) << "*** web_peer_connection\n";
+		}
 
 		std::string protocol;
 		boost::tie(protocol, m_auth, m_host, m_port, m_path)
@@ -225,11 +234,23 @@ namespace libtorrent
 				request += "\r\nProxy-Connection: keep-alive";
 			}
 			request += "\r\nRange: bytes=";
-			request += boost::lexical_cast<std::string>(size_type(r.piece)
+			//. 2008.05.20 by chongyc
+#if 0
+			request += boost::lexical_cast<std::string>(r.piece
 				* info.piece_length() + r.start);
+#else
+			request += boost::lexical_cast<std::string>(size_type(r.piece)
+				* size_type(info.piece_length()) + size_type(r.start));
+#endif
 			request += "-";
+			//. 2008.05.20 by chongyc
+#if 0
 			request += boost::lexical_cast<std::string>(r.piece
 				* info.piece_length() + r.start + r.length - 1);
+#else
+			request += boost::lexical_cast<std::string>(size_type(r.piece)
+				* size_type(info.piece_length()) + size_type(r.start) + size_type(r.length - 1));
+#endif
 			if (m_first_request || using_proxy)
 				request += "\r\nConnection: keep-alive";
 			request += "\r\n\r\n";
@@ -294,9 +315,11 @@ namespace libtorrent
 			}
 		}
 
-#ifdef TORRENT_VERBOSE_LOGGING
-		(*m_logger) << request << "\n";
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_web_connection)
+		{
+			(*m_logger) << request << "\n";
+		}
 
 		send_buffer(request.c_str(), request.size());
 	}
@@ -324,10 +347,13 @@ namespace libtorrent
 
 		if (error)
 		{
-#ifdef TORRENT_VERBOSE_LOGGING
-			(*m_logger) << "*** web_peer_connection error: "
-				<< error.message() << "\n";
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_web_connection)
+			{
+				(*m_logger) << "*** web_peer_connection error: "
+					<< error.message() << "\n";
+			}
+
 			return;
 		}
 
@@ -347,6 +373,8 @@ namespace libtorrent
 			{
 				boost::tie(payload, protocol) = m_parser.incoming(recv_buffer);
 				m_statistics.received_bytes(0, protocol);
+				//. 2008.05.20 by chongyc
+				m_statistics.webseed_received_bytes(0, protocol);
 				bytes_transferred -= protocol;
 
 				TORRENT_ASSERT(recv_buffer.left() == 0 || *recv_buffer.begin == 'H');
@@ -371,6 +399,16 @@ namespace libtorrent
 					{
 						// temporarily unavailable, retry later
 						t->retry_url_seed(m_url);
+
+						//. 2008.06.19 by chongyc
+						//. this may occurred when we try to multiple-connect to web site that does't allow multiple-connections.
+						//. so decrease maximum connection number by 1 
+						int limit = t->max_webseed_connections();
+						if (limit > 1) {
+							limit -= 1;
+							t->set_max_webseed_connections(limit);
+						}
+
 					}
 					t->remove_url_seed(m_url);
 					std::string error_msg = boost::lexical_cast<std::string>(m_parser.status_code())
@@ -489,6 +527,8 @@ namespace libtorrent
 			int left_in_response = range_end - range_start - m_range_pos;
 			int payload_transferred = (std::min)(left_in_response, int(bytes_transferred));
 			m_statistics.received_bytes(payload_transferred, 0);
+			//. 2008.06.04 by chongyc
+			m_statistics.webseed_received_bytes(payload_transferred, 0);
 			bytes_transferred -= payload_transferred;
 			m_range_pos += payload_transferred;;
 			if (m_range_pos > range_end - range_start) m_range_pos = range_end - range_start;

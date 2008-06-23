@@ -338,7 +338,10 @@ namespace libtorrent
 					+ " bytes";
 				return false;
 			}
-			if ((compact_mode && time != s->second)
+			//. 2008.06.03 by chongyc
+			//if ((compact_mode && time != s->second)
+			//	|| (!compact_mode && time < s->second))
+			if ((compact_mode && time > s->second + 10*60)
 				|| (!compact_mode && time < s->second))
 			{
 				if (error) *error = "timestamp mismatch for file '"
@@ -1721,6 +1724,12 @@ namespace libtorrent
 				boost::recursive_mutex::scoped_lock l(mutex);
 				std::fill(pieces.begin(), pieces.end(), false);
 				num_pieces = 0;
+			}
+
+			//. 2008.06.03 by chongyc
+			if (m_info->is_fake_torrent())
+			{
+				m_storage->delete_files();
 			}
 
 			m_piece_data.resize(int(m_info->piece_length()));

@@ -194,6 +194,14 @@ namespace libtorrent
 		TORRENT_FORWARD(set_max_connections(max_connections));
 	}
 
+	//. 2008.06.19 by chongyc	
+	void torrent_handle::set_max_webseed_connections(int max_connections) const
+	{
+		INVARIANT_CHECK;
+		TORRENT_ASSERT(max_connections >= 1);
+		TORRENT_FORWARD(set_max_webseed_connections(max_connections));
+	}
+
 	void torrent_handle::set_peer_upload_limit(tcp::endpoint ip, int limit) const
 	{
 		INVARIANT_CHECK;
@@ -254,6 +262,22 @@ namespace libtorrent
 		INVARIANT_CHECK;
 		TORRENT_FORWARD_RETURN(valid_metadata(), false);
 	}
+
+	//. 2008.05.22 by chongyc
+	//x 2008.06.03 by chongyc
+	//void torrent_handle::fake_torrent(bool fake)
+	//{
+	//	INVARIANT_CHECK;
+	//	TORRENT_FORWARD(fake_torrent(fake));
+	//}
+
+	//. 2008.05.22 by chongyc
+	//x 2008.06.03 by chongyc
+	//bool torrent_handle::is_fake_torrent()
+	//{
+	//	INVARIANT_CHECK;
+	//	TORRENT_FORWARD_RETURN(is_fake_torrent(), false);
+	//}
 
 	bool torrent_handle::is_seed() const
 	{

@@ -59,7 +59,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/assert.hpp"
 
 #ifndef TORRENT_MAX_ALERT_TYPES
-#define TORRENT_MAX_ALERT_TYPES 15
+#define TORRENT_MAX_ALERT_TYPES 30
 #endif
 
 namespace libtorrent {

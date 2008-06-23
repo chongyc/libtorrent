@@ -51,6 +51,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/bencode.hpp"
 #include "libtorrent/io.hpp"
 #include "libtorrent/version.hpp"
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 using boost::ref;
 using boost::lexical_cast;
@@ -123,6 +125,8 @@ namespace
 
 namespace libtorrent { namespace dht
 {
+	//. 2008.06.21 by chongyc
+	using namespace libtorrent;
 
 	void intrusive_ptr_add_ref(dht_tracker const* c)
 	{
@@ -167,30 +171,33 @@ namespace libtorrent { namespace dht
 		m_in_buf[0].resize(1000);
 		m_in_buf[1].resize(1000);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		m_counter = 0;
-		std::fill_n(m_replies_bytes_sent, 5, 0);
-		std::fill_n(m_queries_bytes_received, 5, 0);
-		std::fill_n(m_replies_sent, 5, 0);
-		std::fill_n(m_queries_received, 5, 0);
-		m_announces = 0;
-		m_failed_announces = 0;
-		m_total_message_input = 0;
-		m_ut_message_input = 0;
-		m_lt_message_input = 0;
-		m_mp_message_input = 0;
-		m_gr_message_input = 0;
-		m_mo_message_input = 0;
-		m_total_in_bytes = 0;
-		m_total_out_bytes = 0;
-		m_queries_out_bytes = 0;
-		
-		// turns on and off individual components' logging
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			m_counter = 0;
+			std::fill_n(m_replies_bytes_sent, 5, 0);
+			std::fill_n(m_queries_bytes_received, 5, 0);
+			std::fill_n(m_replies_sent, 5, 0);
+			std::fill_n(m_queries_received, 5, 0);
+			m_announces = 0;
+			m_failed_announces = 0;
+			m_total_message_input = 0;
+			m_ut_message_input = 0;
+			m_lt_message_input = 0;
+			m_mp_message_input = 0;
+			m_gr_message_input = 0;
+			m_mo_message_input = 0;
+			m_total_in_bytes = 0;
+			m_total_out_bytes = 0;
+			m_queries_out_bytes = 0;
+			
+			// turns on and off individual components' logging
 
 //		rpc_log().enable(false);
 //		node_log().enable(false);
 //		traversal_log().enable(false);
 //		dht_tracker_log.enable(false);
-
+		}
 #endif
 		std::vector<udp::endpoint> initial_nodes;
 
@@ -301,89 +308,102 @@ namespace libtorrent { namespace dht
 			m_last_new_key = now;
 			m_dht.new_write_key();
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << time_now_string() << " new write key";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << time_now_string() << " new write key";
+			}
 #endif
 		}
 		
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		static bool first = true;
-		if (first)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
 		{
-			boost::filesystem::create_directory("libtorrent_logs");
+			static bool first = true;
+			//x 2008.06.21 by chongyc
+			//if (first)
+			//{
+			//	boost::filesystem::create_directory("libtorrent_logs");
+			//}
+
+			//. 2008.06.21 by chongyc
+			//std::ofstream st("libtorrent_logs/routing_table_state.txt", std::ios_base::trunc);
+			libtorrent::dht::log st("dht_tracker", "routing_table_state.txt", false);
+			m_dht.print_state(st);
+			
+			// count torrents
+			int torrents = std::distance(m_dht.begin_data(), m_dht.end_data());
+			
+			// count peers
+			int peers = 0;
+			std::for_each(m_dht.begin_data(), m_dht.end_data(), count_peers(peers));
+
+			//. 2008.06.21 by chongyc
+			//std::ofstream pc("libtorrent_logs/dht_stats.log", std::ios_base::app);
+			libtorrent::dht::log pc("dht_tracker", "dht_stats.log", true);
+			if (first)
+			{
+				first = false;
+				pc << "\n\n *****   starting log at " << time_now_string() << "   *****\n\n"
+					<< "minute:active nodes:passive nodes"
+					":ping replies sent:ping queries recvd:ping"
+					":ping replies sent:ping queries recvd:ping"
+					":find_node replies bytes sent:find_node queries bytes recv"
+					":find_node replies bytes sent:find_node queries bytes recv"
+					":get_peers replies sent:get_peers queries recvd:get_peers"
+					":get_peers replies bytes sent:get_peers queries bytes recv"
+					":announce_peer replies sent:announce_peer queries recvd:announce_peer"
+					":announce_peer replies bytes sent:announce_peer queries bytes recv"
+					":error replies sent:error queries recvd:error"
+					":error replies bytes sent:error queries bytes recv"
+					":num torrents:num peers:announces per min"
+					":failed announces per min:total msgs per min"
+					":ut msgs per min:lt msgs per min:mp msgs per min"
+					":gr msgs per min:bytes in per sec:bytes out per sec"
+					":queries out bytes per sec\n\n";
+			}
+
+			int active;
+			int passive;
+			boost::tie(active, passive) = m_dht.size();
+			pc << (m_counter * tick_period)
+				<< "\t" << active
+				<< "\t" << passive;
+			for (int i = 0; i < 5; ++i)
+				pc << "\t" << (m_replies_sent[i] / float(tick_period))
+					<< "\t" << (m_queries_received[i] / float(tick_period))
+					<< "\t" << (m_replies_bytes_sent[i] / float(tick_period*60))
+					<< "\t" << (m_queries_bytes_received[i] / float(tick_period*60));
+			
+			pc << "\t" << torrents
+				<< "\t" << peers
+				<< "\t" << m_announces / float(tick_period)
+				<< "\t" << m_failed_announces / float(tick_period)
+				<< "\t" << (m_total_message_input / float(tick_period))
+				<< "\t" << (m_ut_message_input / float(tick_period))
+				<< "\t" << (m_lt_message_input / float(tick_period))
+				<< "\t" << (m_mp_message_input / float(tick_period))
+				<< "\t" << (m_gr_message_input / float(tick_period))
+				<< "\t" << (m_mo_message_input / float(tick_period))
+				<< "\t" << (m_total_in_bytes / float(tick_period*60))
+				<< "\t" << (m_total_out_bytes / float(tick_period*60))
+				<< "\t" << (m_queries_out_bytes / float(tick_period*60))
+				<< "\n";
+			++m_counter;
+			std::fill_n(m_replies_bytes_sent, 5, 0);
+			std::fill_n(m_queries_bytes_received, 5, 0);
+			std::fill_n(m_replies_sent, 5, 0);
+			std::fill_n(m_queries_received, 5, 0);
+			m_announces = 0;
+			m_failed_announces = 0;
+			m_total_message_input = 0;
+			m_ut_message_input = 0;
+			m_lt_message_input = 0;
+			m_total_in_bytes = 0;
+			m_total_out_bytes = 0;
+			m_queries_out_bytes = 0;
 		}
-
-		std::ofstream st("libtorrent_logs/routing_table_state.txt", std::ios_base::trunc);
-		m_dht.print_state(st);
-		
-		// count torrents
-		int torrents = std::distance(m_dht.begin_data(), m_dht.end_data());
-		
-		// count peers
-		int peers = 0;
-		std::for_each(m_dht.begin_data(), m_dht.end_data(), count_peers(peers));
-
-		std::ofstream pc("libtorrent_logs/dht_stats.log", std::ios_base::app);
-		if (first)
-		{
-			first = false;
-			pc << "\n\n *****   starting log at " << time_now_string() << "   *****\n\n"
-				<< "minute:active nodes:passive nodes"
-				":ping replies sent:ping queries recvd:ping"
-				":ping replies sent:ping queries recvd:ping"
-				":find_node replies bytes sent:find_node queries bytes recv"
-				":find_node replies bytes sent:find_node queries bytes recv"
-				":get_peers replies sent:get_peers queries recvd:get_peers"
-				":get_peers replies bytes sent:get_peers queries bytes recv"
-				":announce_peer replies sent:announce_peer queries recvd:announce_peer"
-				":announce_peer replies bytes sent:announce_peer queries bytes recv"
-				":error replies sent:error queries recvd:error"
-				":error replies bytes sent:error queries bytes recv"
-				":num torrents:num peers:announces per min"
-				":failed announces per min:total msgs per min"
-				":ut msgs per min:lt msgs per min:mp msgs per min"
-				":gr msgs per min:bytes in per sec:bytes out per sec"
-				":queries out bytes per sec\n\n";
-		}
-
-		int active;
-		int passive;
-		boost::tie(active, passive) = m_dht.size();
-		pc << (m_counter * tick_period)
-			<< "\t" << active
-			<< "\t" << passive;
-		for (int i = 0; i < 5; ++i)
-			pc << "\t" << (m_replies_sent[i] / float(tick_period))
-				<< "\t" << (m_queries_received[i] / float(tick_period))
-				<< "\t" << (m_replies_bytes_sent[i] / float(tick_period*60))
-				<< "\t" << (m_queries_bytes_received[i] / float(tick_period*60));
-		
-		pc << "\t" << torrents
-			<< "\t" << peers
-			<< "\t" << m_announces / float(tick_period)
-			<< "\t" << m_failed_announces / float(tick_period)
-			<< "\t" << (m_total_message_input / float(tick_period))
-			<< "\t" << (m_ut_message_input / float(tick_period))
-			<< "\t" << (m_lt_message_input / float(tick_period))
-			<< "\t" << (m_mp_message_input / float(tick_period))
-			<< "\t" << (m_gr_message_input / float(tick_period))
-			<< "\t" << (m_mo_message_input / float(tick_period))
-			<< "\t" << (m_total_in_bytes / float(tick_period*60))
-			<< "\t" << (m_total_out_bytes / float(tick_period*60))
-			<< "\t" << (m_queries_out_bytes / float(tick_period*60))
-			<< std::endl;
-		++m_counter;
-		std::fill_n(m_replies_bytes_sent, 5, 0);
-		std::fill_n(m_queries_bytes_received, 5, 0);
-		std::fill_n(m_replies_sent, 5, 0);
-		std::fill_n(m_queries_received, 5, 0);
-		m_announces = 0;
-		m_failed_announces = 0;
-		m_total_message_input = 0;
-		m_ut_message_input = 0;
-		m_lt_message_input = 0;
-		m_total_in_bytes = 0;
-		m_total_out_bytes = 0;
-		m_queries_out_bytes = 0;
 #endif
 	}
 	catch (std::exception&)
@@ -435,12 +455,16 @@ namespace libtorrent { namespace dht
 				if (now < match->limit)
 				{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					if (match->count == 20)
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
 					{
-						TORRENT_LOG(dht_tracker) << time_now_string() << " BANNING PEER [ ip: "
-							<< m_remote_endpoint[current_buffer] << " | "
-							"time: " << total_seconds((now - match->limit) + seconds(5))
-							<< " | count: " << match->count << " ]";
+						if (match->count == 20)
+						{
+							TORRENT_LOG(dht_tracker) << time_now_string() << " BANNING PEER [ ip: "
+								<< m_remote_endpoint[current_buffer] << " | "
+								"time: " << total_seconds((now - match->limit) + seconds(5))
+								<< " | count: " << match->count << " ]";
+						}
 					}
 #endif
 					// we've received 20 messages in less than 5 seconds from
@@ -463,8 +487,12 @@ namespace libtorrent { namespace dht
 		}
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		++m_total_message_input;
-		m_total_in_bytes += bytes_transferred;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			++m_total_message_input;
+			m_total_in_bytes += bytes_transferred;
+		}
 #endif
 
 		try
@@ -478,8 +506,12 @@ namespace libtorrent { namespace dht
 				, m_in_buf[current_buffer].end());
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << time_now_string() << " RECEIVED ["
-				<< m_remote_endpoint[current_buffer] << "]:";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << time_now_string() << " RECEIVED ["
+					<< m_remote_endpoint[current_buffer] << "]:";
+			}
 #endif
 
 			libtorrent::dht::msg m;
@@ -488,46 +520,50 @@ namespace libtorrent { namespace dht
 			m.transaction_id = e["t"].string();
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			try
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
 			{
-				entry const* ver = e.find_key("v");
-				if (!ver) throw std::exception();
+				try
+				{
+					entry const* ver = e.find_key("v");
+					if (!ver) throw std::exception();
 
-				std::string const& client = ver->string();
-				if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "UT"))
-				{
-					++m_ut_message_input;
-					TORRENT_LOG(dht_tracker) << "   client: uTorrent";
+					std::string const& client = ver->string();
+					if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "UT"))
+					{
+						++m_ut_message_input;
+						TORRENT_LOG(dht_tracker) << "   client: uTorrent";
+					}
+					else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "LT"))
+					{
+						++m_lt_message_input;
+						TORRENT_LOG(dht_tracker) << "   client: libtorrent";
+					}
+					else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "MP"))
+					{
+						++m_mp_message_input;
+						TORRENT_LOG(dht_tracker) << "   client: MooPolice";
+					}
+					else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "GR"))
+					{
+						++m_gr_message_input;
+						TORRENT_LOG(dht_tracker) << "   client: GetRight";
+					}
+					else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "MO"))
+					{
+						++m_mo_message_input;
+						TORRENT_LOG(dht_tracker) << "   client: Mono Torrent";
+					}
+					else
+					{
+						TORRENT_LOG(dht_tracker) << "   client: " << client;
+					}
 				}
-				else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "LT"))
+				catch (std::exception&)
 				{
-					++m_lt_message_input;
-					TORRENT_LOG(dht_tracker) << "   client: libtorrent";
-				}
-				else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "MP"))
-				{
-					++m_mp_message_input;
-					TORRENT_LOG(dht_tracker) << "   client: MooPolice";
-				}
-				else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "GR"))
-				{
-					++m_gr_message_input;
-					TORRENT_LOG(dht_tracker) << "   client: GetRight";
-				}
-				else if (client.size() > 1 && std::equal(client.begin(), client.begin() + 2, "MO"))
-				{
-					++m_mo_message_input;
-					TORRENT_LOG(dht_tracker) << "   client: Mono Torrent";
-				}
-				else
-				{
-					TORRENT_LOG(dht_tracker) << "   client: " << client;
-				}
+					TORRENT_LOG(dht_tracker) << "   client: generic";
+				};
 			}
-			catch (std::exception&)
-			{
-				TORRENT_LOG(dht_tracker) << "   client: generic";
-			};
 #endif
 
 			std::string const& msg_type = e["y"].string();
@@ -535,8 +571,12 @@ namespace libtorrent { namespace dht
 			if (msg_type == "r")
 			{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-				TORRENT_LOG(dht_tracker) << "   reply: transaction: "
-					<< m.transaction_id;
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_dht)
+				{
+					TORRENT_LOG(dht_tracker) << "   reply: transaction: "
+						<< m.transaction_id;
+				}
 #endif
 
 				m.reply = true;
@@ -564,7 +604,11 @@ namespace libtorrent { namespace dht
 						read_endpoint_list<tcp::endpoint>(n, m.peers);
 					}
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   peers: " << m.peers.size();
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   peers: " << m.peers.size();
+					}
 #endif
 				}
 
@@ -584,7 +628,11 @@ namespace libtorrent { namespace dht
 							id, read_v4_endpoint<udp::endpoint>(i)));
 					}
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   nodes: " << m.nodes.size();
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   nodes: " << m.nodes.size();
+					}
 #endif
 				}
 
@@ -609,7 +657,11 @@ namespace libtorrent { namespace dht
 								id, read_v6_endpoint<udp::endpoint>(in)));
 					}
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   nodes2 + nodes: " << m.nodes.size();
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   nodes2 + nodes: " << m.nodes.size();
+					}
 #endif
 				}
 
@@ -626,7 +678,11 @@ namespace libtorrent { namespace dht
 
 				std::string request_kind(e["q"].string());
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-				TORRENT_LOG(dht_tracker) << "   query: " << request_kind;
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_dht)
+				{
+					TORRENT_LOG(dht_tracker) << "   query: " << request_kind;
+				}
 #endif
 
 				if (request_kind == "ping")
@@ -639,8 +695,12 @@ namespace libtorrent { namespace dht
 					if (target.size() != 20) throw std::runtime_error("invalid size of target id");
 					std::copy(target.begin(), target.end(), m.info_hash.begin());
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   target: "
-						<< boost::lexical_cast<std::string>(m.info_hash);
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   target: "
+							<< boost::lexical_cast<std::string>(m.info_hash);
+					}
 #endif
 
 					m.message_id = libtorrent::dht::messages::find_node;
@@ -652,14 +712,22 @@ namespace libtorrent { namespace dht
 					std::copy(info_hash.begin(), info_hash.end(), m.info_hash.begin());
 					m.message_id = libtorrent::dht::messages::get_peers;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   info_hash: "
-						<< boost::lexical_cast<std::string>(m.info_hash);
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   info_hash: "
+							<< boost::lexical_cast<std::string>(m.info_hash);
+					}
 #endif
 				}
 				else if (request_kind == "announce_peer")
 				{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					++m_announces;
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						++m_announces;
+					}
 #endif
 					std::string const& info_hash = a["info_hash"].string();
 					if (info_hash.size() != 20)
@@ -669,19 +737,27 @@ namespace libtorrent { namespace dht
 					m.write_token = a["token"];
 					m.message_id = libtorrent::dht::messages::announce_peer;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   info_hash: "
-						<< boost::lexical_cast<std::string>(m.info_hash);
-					TORRENT_LOG(dht_tracker) << "   port: " << m.port;
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   info_hash: "
+							<< boost::lexical_cast<std::string>(m.info_hash);
+						TORRENT_LOG(dht_tracker) << "   port: " << m.port;
 
-					if (!m_dht.verify_token(m))
-						++m_failed_announces;
+						if (!m_dht.verify_token(m))
+							++m_failed_announces;
+					}
 #endif
 				}
 				else
 				{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "  *** UNSUPPORTED REQUEST *** : "
-						<< request_kind;
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "  *** UNSUPPORTED REQUEST *** : "
+							<< request_kind;
+					}
 #endif
 					throw std::runtime_error("unsupported request: " + request_kind);
 				}
@@ -693,27 +769,39 @@ namespace libtorrent { namespace dht
 				m.error_msg = list.back().string();
 				m.error_code = list.front().integer();
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-				TORRENT_LOG(dht_tracker) << "   incoming error: " << m.error_code << " "
-					<< m.error_msg;
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_dht)
+				{
+					TORRENT_LOG(dht_tracker) << "   incoming error: " << m.error_code << " "
+						<< m.error_msg;
+				}
 #endif
 				throw std::runtime_error("DHT error message");
 			}
 			else
 			{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-				TORRENT_LOG(dht_tracker) << "  *** UNSUPPORTED MESSAGE TYPE *** : "
-					<< msg_type;
+				//. 2008.06.21 by chongyc
+				if (logger_setting::log_dht)
+				{
+					TORRENT_LOG(dht_tracker) << "  *** UNSUPPORTED MESSAGE TYPE *** : "
+						<< msg_type;
+				}
 #endif
 				throw std::runtime_error("unsupported message type: " + msg_type);
 			}
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			if (!m.reply)
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
 			{
-				++m_queries_received[m.message_id];
-				m_queries_bytes_received[m.message_id] += int(bytes_transferred);
+				if (!m.reply)
+				{
+					++m_queries_received[m.message_id];
+					m_queries_bytes_received[m.message_id] += int(bytes_transferred);
+				}
+				TORRENT_LOG(dht_tracker) << e;
 			}
-			TORRENT_LOG(dht_tracker) << e;
 #endif
 			TORRENT_ASSERT(m.message_id != messages::error);
 			m_dht.incoming(m);
@@ -721,11 +809,15 @@ namespace libtorrent { namespace dht
 		catch (std::exception& e)
 		{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			int current_buffer = (m_buffer + 1) & 1;
-			std::string msg(m_in_buf[current_buffer].begin()
-				, m_in_buf[current_buffer].begin() + bytes_transferred);
-			TORRENT_LOG(dht_tracker) << "invalid incoming packet: "
-				<< e.what() << "\n" << msg << "\n";
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				int current_buffer = (m_buffer + 1) & 1;
+				std::string msg(m_in_buf[current_buffer].begin()
+					, m_in_buf[current_buffer].begin() + bytes_transferred);
+				TORRENT_LOG(dht_tracker) << "invalid incoming packet: "
+					<< e.what() << "\n" << msg << "\n";
+			}
 #endif
 		}
 	}
@@ -850,7 +942,11 @@ namespace libtorrent { namespace dht
 				}
 			}
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << "   nodes: " << m.nodes.size();
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << "   nodes: " << m.nodes.size();
+			}
 #endif
 		}
 	}
@@ -868,9 +964,13 @@ namespace libtorrent { namespace dht
 		e["v"] = std::string(version_str, version_str + 4);
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		TORRENT_LOG(dht_tracker) << time_now_string()
-			<< " SENDING [" << m.addr << "]:";
-		TORRENT_LOG(dht_tracker) << "   transaction: " << m.transaction_id;
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
+		{
+			TORRENT_LOG(dht_tracker) << time_now_string()
+				<< " SENDING [" << m.addr << "]:";
+			TORRENT_LOG(dht_tracker) << "   transaction: " << m.transaction_id;
+		}
 #endif
 
 		if (m.message_id == messages::error)
@@ -883,8 +983,12 @@ namespace libtorrent { namespace dht
 			error_list.list().push_back(entry(m.error_msg));
 			e["e"] = error_list;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << time_now_string()
-				<< "   outgoing error: " << m.error_code << " " << m.error_msg;
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << time_now_string()
+					<< "   outgoing error: " << m.error_code << " " << m.error_msg;
+			}
 #endif
 		}
 		else if (m.reply)
@@ -895,8 +999,12 @@ namespace libtorrent { namespace dht
 			r["id"] = std::string(m.id.begin(), m.id.end());
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << time_now_string()
-				<< "   reply: " << messages::ids[m.message_id];
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << time_now_string()
+					<< "   reply: " << messages::ids[m.message_id];
+			}
 #endif
 
 			if (m.write_token.type() != entry::undefined_t)
@@ -932,7 +1040,11 @@ namespace libtorrent { namespace dht
 							p.list().push_back(entry(endpoint));
 						}
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-						TORRENT_LOG(dht_tracker) << "   peers: " << m.peers.size();
+						//. 2008.06.21 by chongyc
+						if (logger_setting::log_dht)
+						{
+							TORRENT_LOG(dht_tracker) << "   peers: " << m.peers.size();
+						}
 #endif
 					}
 					break;
@@ -956,8 +1068,12 @@ namespace libtorrent { namespace dht
 			e["q"] = messages::ids[m.message_id];
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(dht_tracker) << "   query: "
-				<< messages::ids[m.message_id];
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_dht)
+			{
+				TORRENT_LOG(dht_tracker) << "   query: "
+					<< messages::ids[m.message_id];
+			}
 #endif
 
 			switch (m.message_id)
@@ -966,8 +1082,12 @@ namespace libtorrent { namespace dht
 				{
 					a["target"] = std::string(m.info_hash.begin(), m.info_hash.end());
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   target: "
-						<< boost::lexical_cast<std::string>(m.info_hash);
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   target: "
+							<< boost::lexical_cast<std::string>(m.info_hash);
+					}
 #endif
 					break;
 				}
@@ -975,8 +1095,12 @@ namespace libtorrent { namespace dht
 				{
 					a["info_hash"] = std::string(m.info_hash.begin(), m.info_hash.end());
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker) << "   info_hash: "
-						<< boost::lexical_cast<std::string>(m.info_hash);
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker) << "   info_hash: "
+							<< boost::lexical_cast<std::string>(m.info_hash);
+					}
 #endif
 					break;	
 				}
@@ -985,9 +1109,13 @@ namespace libtorrent { namespace dht
 					a["info_hash"] = std::string(m.info_hash.begin(), m.info_hash.end());
 					a["token"] = m.write_token;
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-					TORRENT_LOG(dht_tracker)
-						<< "   port: " << m.port
-						<< "   info_hash: " << boost::lexical_cast<std::string>(m.info_hash);
+					//. 2008.06.21 by chongyc
+					if (logger_setting::log_dht)
+					{
+						TORRENT_LOG(dht_tracker)
+							<< "   port: " << m.port
+							<< "   info_hash: " << boost::lexical_cast<std::string>(m.info_hash);
+					}
 #endif
 					break;
 				default: break;
@@ -1003,18 +1131,22 @@ namespace libtorrent { namespace dht
 		if (ec) return;
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-		m_total_out_bytes += m_send_buf.size();
-		
-		if (m.reply)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_dht)
 		{
-			++m_replies_sent[m.message_id];
-			m_replies_bytes_sent[m.message_id] += int(m_send_buf.size());
+			m_total_out_bytes += m_send_buf.size();
+
+			if (m.reply)
+			{
+				++m_replies_sent[m.message_id];
+				m_replies_bytes_sent[m.message_id] += int(m_send_buf.size());
+			}
+			else
+			{
+				m_queries_out_bytes += m_send_buf.size();
+			}
+			TORRENT_LOG(dht_tracker) << e;
 		}
-		else
-		{
-			m_queries_out_bytes += m_send_buf.size();
-		}
-		TORRENT_LOG(dht_tracker) << e;
 #endif
 
 		if (!m.piggy_backed_ping) return;

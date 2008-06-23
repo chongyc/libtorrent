@@ -83,7 +83,9 @@ namespace libtorrent
 		// workaround for microsofts
 		// hardware exceptions that makes
 		// it hard to debug stuff
-#ifdef _MSC_VER
+		//. 2008.05.20 by chongyc
+//#ifdef _MSC_VER
+#if defined(_MSC_VER)  && defined(DISABLE_ZP2P_CLIENT)
 		struct eh_initializer
 		{
 			eh_initializer()
@@ -123,17 +125,13 @@ namespace libtorrent
 
 		session(fingerprint const& print = fingerprint("LT"
 			, LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 			, fs::path logpath = "."
-#endif
 				);
 		session(
 			fingerprint const& print
 			, std::pair<int, int> listen_port_range
 			, char const* listen_interface = "0.0.0.0"
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 			, fs::path logpath = "."
-#endif
 			);
 			
 		~session();

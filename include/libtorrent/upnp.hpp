@@ -38,6 +38,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/http_connection.hpp"
 #include "libtorrent/connection_queue.hpp"
 #include "libtorrent/intrusive_ptr_base.hpp"
+//. 2008.05.20 by chongyc
+#include "libtorrent/debug.hpp"
 
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
@@ -45,15 +47,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
 #include <set>
-
-
-#if (defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)) && !defined (TORRENT_UPNP_LOGGING)
-#define TORRENT_UPNP_LOGGING
-#endif
-
-#if defined(TORRENT_UPNP_LOGGING)
-#include <fstream>
-#endif
 
 namespace libtorrent
 {
@@ -235,9 +228,8 @@ private:
 
 	connection_queue& m_cc;
 
-#ifdef TORRENT_UPNP_LOGGING
-	std::ofstream m_log;
-#endif
+	//. 2008.05.20 by chongyc
+	libtorrent::logger	m_log;
 };
 
 }

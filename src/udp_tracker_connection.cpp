@@ -54,6 +54,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/tracker_manager.hpp"
 #include "libtorrent/udp_tracker_connection.hpp"
 #include "libtorrent/io.hpp"
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 namespace
 {
@@ -113,9 +115,12 @@ namespace libtorrent
 		}
 
 		boost::shared_ptr<request_callback> cb = requester();
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		if (cb) cb->debug_log("udp tracker name lookup successful");
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			if (cb) cb->debug_log("udp tracker name lookup successful");
+		}
+
 		restart_read_timeout();
 		
 		// look for an address that has the same kind as the one
@@ -173,14 +178,17 @@ namespace libtorrent
 
 	void udp_tracker_connection::send_udp_connect()
 	{
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
 		{
-			cb->debug_log("==> UDP_TRACKER_CONNECT ["
-				+ lexical_cast<std::string>(tracker_req().info_hash) + "]");
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb)
+			{
+				cb->debug_log("==> UDP_TRACKER_CONNECT ["
+					+ lexical_cast<std::string>(tracker_req().info_hash) + "]");
+			}
 		}
-#endif
+
 		if (!m_socket.is_open()) return; // the operation was aborted
 
 		char send_buf[16];
@@ -270,14 +278,16 @@ namespace libtorrent
 		m_attempts = 0;
 		m_connection_id = detail::read_int64(ptr);
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
 		{
-			cb->debug_log("<== UDP_TRACKER_CONNECT_RESPONSE ["
-				+ lexical_cast<std::string>(m_connection_id) + "]");
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb)
+			{
+				cb->debug_log("<== UDP_TRACKER_CONNECT_RESPONSE ["
+					+ lexical_cast<std::string>(m_connection_id) + "]");
+			}
 		}
-#endif
 
 		if (tracker_req().kind == tracker_request::announce_request)
 			send_udp_announce();
@@ -333,14 +343,16 @@ namespace libtorrent
 		// extensions
 		detail::write_uint16(0, out);
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
 		{
-			cb->debug_log("==> UDP_TRACKER_ANNOUNCE ["
-				+ lexical_cast<std::string>(req.info_hash) + "]");
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb)
+			{
+				cb->debug_log("==> UDP_TRACKER_ANNOUNCE ["
+					+ lexical_cast<std::string>(req.info_hash) + "]");
+			}
 		}
-#endif
 
 		m_socket.send(asio::buffer(buf), 0);
 		++m_attempts;
@@ -446,12 +458,14 @@ namespace libtorrent
 		}
 
 		boost::shared_ptr<request_callback> cb = requester();
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		if (cb)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
 		{
-			cb->debug_log("<== UDP_TRACKER_ANNOUNCE_RESPONSE");
+			if (cb)
+			{
+				cb->debug_log("<== UDP_TRACKER_ANNOUNCE_RESPONSE");
+			}
 		}
-#endif
 
 		if (!cb)
 		{

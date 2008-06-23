@@ -59,6 +59,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/torrent.hpp"
 #include "libtorrent/io.hpp"
 #include "libtorrent/instantiate_connection.hpp"
+//. 2008.06.21 by chongyc
+#include "libtorrent/debug.hpp"
 
 using namespace libtorrent;
 using boost::bind;
@@ -482,19 +484,20 @@ namespace libtorrent
 		}
 		m_send_buffer += "\r\n\r\n";
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb)
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
 		{
-			cb->debug_log("==> TRACKER_REQUEST [ str: " + m_send_buffer + " ]");
-			std::stringstream info_hash_str;
-			info_hash_str << req.info_hash;
-			cb->debug_log("info_hash: "
-				+ boost::lexical_cast<std::string>(req.info_hash));
-			cb->debug_log("name lookup: " + hostname);
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb)
+			{
+				cb->debug_log("==> TRACKER_REQUEST [ str: " + m_send_buffer + " ]");
+				std::stringstream info_hash_str;
+				info_hash_str << req.info_hash;
+				cb->debug_log("info_hash: "
+					+ boost::lexical_cast<std::string>(req.info_hash));
+				cb->debug_log("name lookup: " + hostname);
+			}
 		}
-#endif
 
 		tcp::resolver::query q(hostname
 			, boost::lexical_cast<std::string>(m_port));
@@ -525,21 +528,28 @@ namespace libtorrent
 		m_connection_ticket = -1;
 		m_timed_out = true;
 		tracker_connection::close();
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		std::stringstream msg;
-		msg << "http_tracker_connection::close() " << m_man.num_requests();
-		if (cb) cb->debug_log(msg.str());
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			boost::shared_ptr<request_callback> cb = requester();
+			std::stringstream msg;
+			msg << "http_tracker_connection::close() " << m_man.num_requests();
+			if (cb) cb->debug_log(msg.str());
+		}
 	}
 
 	void http_tracker_connection::name_lookup(asio::error_code const& error
 		, tcp::resolver::iterator i) try
 	{
 		boost::shared_ptr<request_callback> cb = requester();
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		if (cb) cb->debug_log("tracker name lookup handler called");
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			if (cb) cb->debug_log("tracker name lookup handler called");
+		}
+
 		if (error == asio::error::operation_aborted) return;
 		if (m_timed_out) return;
 
@@ -549,9 +559,12 @@ namespace libtorrent
 			return;
 		}
 		
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		if (cb) cb->debug_log("tracker name lookup successful");
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			if (cb) cb->debug_log("tracker name lookup successful");
+		}
+
 		restart_read_timeout();
 
 		// look for an address that has the same kind as the one
@@ -621,10 +634,12 @@ namespace libtorrent
 			return;
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb) cb->debug_log("tracker connection successful");
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb) cb->debug_log("tracker connection successful");
+		}
 
 		restart_read_timeout();
 		async_write(m_socket, asio::buffer(m_send_buffer.c_str()
@@ -646,10 +661,14 @@ namespace libtorrent
 			return;
 		}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb) cb->debug_log("tracker send data completed");
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb) cb->debug_log("tracker send data completed");
+		}
+
+
 		restart_read_timeout();
 		TORRENT_ASSERT(m_buffer.size() - m_recv_pos > 0);
 		m_socket.async_read_some(asio::buffer(&m_buffer[m_recv_pos]
@@ -683,11 +702,14 @@ namespace libtorrent
 
 		restart_read_timeout();
 		TORRENT_ASSERT(bytes_transferred > 0);
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		boost::shared_ptr<request_callback> cb = requester();
-		if (cb) cb->debug_log("tracker connection reading "
-			+ boost::lexical_cast<std::string>(bytes_transferred));
-#endif
+
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			boost::shared_ptr<request_callback> cb = requester();
+			if (cb) cb->debug_log("tracker connection reading "
+				+ boost::lexical_cast<std::string>(bytes_transferred));
+		}
 
 		m_recv_pos += bytes_transferred;
 		m_parser.incoming(buffer::const_interval(&m_buffer[0]
@@ -772,9 +794,12 @@ namespace libtorrent
 				location.insert(0, "http://");
 			}
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			if (cb) cb->debug_log("Redirecting to \"" + location + "\"");
-#endif
+			//. 2008.06.21 by chongyc
+			if (logger_setting::log_tracker)
+			{
+				if (cb) cb->debug_log("Redirecting to \"" + location + "\"");
+			}
+
 			if (cb) cb->tracker_warning("Redirecting to \"" + location + "\"");
 			tracker_request req = tracker_req();
 
@@ -796,9 +821,11 @@ namespace libtorrent
 
 		std::string content_encoding = m_parser.header("content-encoding");
 
-#if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-		if (cb) cb->debug_log("content-encoding: \"" + content_encoding + "\"");
-#endif
+		//. 2008.06.21 by chongyc
+		if (logger_setting::log_tracker)
+		{
+			if (cb) cb->debug_log("content-encoding: \"" + content_encoding + "\"");
+		}
 
 		if (content_encoding == "gzip" || content_encoding == "x-gzip")
 		{

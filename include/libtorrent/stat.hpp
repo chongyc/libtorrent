@@ -60,10 +60,18 @@ namespace libtorrent
 			, m_total_upload_payload(0)
 			, m_total_download_protocol(0)
 			, m_total_upload_protocol(0)
+			, m_webseed_download_payload(0)			//. 2008.05.20 by chongyc 
+			, m_webseed_download_protocol(0)		//. 2008.05.20 by chongyc
+			, m_webseed_total_download_payload(0)	//. 2008.05.20 by chongyc
+			, m_webseed_total_download_protocol(0)	//. 2008.05.20 by chongyc
 			, m_mean_download_rate(0)
 			, m_mean_upload_rate(0)
 			, m_mean_download_payload_rate(0)
 			, m_mean_upload_payload_rate(0)
+			, m_averagr_download_rate(0)	//. 2008.05.20 by chongyc
+			, m_average_upload_rate(0)		//. 2008.05.20 by chongyc
+			, m_average_webseed_rate(0)		//. 2008.05.20 by chongyc
+			, m_elapsed_time(0)				//. 2008.05.20 by chongyc
 		{
 			std::fill(m_download_rate_history, m_download_rate_history+history, 0.f);
 			std::fill(m_upload_rate_history, m_upload_rate_history+history, 0.f);
@@ -79,6 +87,11 @@ namespace libtorrent
 			m_total_download_payload += s.m_downloaded_payload;
 			m_downloaded_protocol += s.m_downloaded_protocol;
 			m_total_download_protocol += s.m_downloaded_protocol;
+			//. 2008.05.20 by chongyc
+			m_webseed_download_payload += s.m_webseed_download_payload;
+			m_webseed_total_download_payload += s.m_webseed_download_payload;
+			m_webseed_download_protocol += s.m_webseed_download_protocol;
+			m_webseed_total_download_protocol += s.m_webseed_download_protocol;
 			
 			m_uploaded_payload += s.m_uploaded_payload;
 			m_total_upload_payload += s.m_uploaded_payload;
@@ -99,6 +112,20 @@ namespace libtorrent
 			m_total_download_protocol += bytes_protocol;
 		}
 
+		//. 2008.05.20 by chongyc
+		void webseed_received_bytes(int bytes_payload, int bytes_protocol)
+		{
+			INVARIANT_CHECK;
+
+			TORRENT_ASSERT(bytes_payload >= 0);
+			TORRENT_ASSERT(bytes_protocol >= 0);
+
+			m_webseed_download_payload += bytes_payload;
+			m_webseed_total_download_payload += bytes_payload;
+			m_webseed_download_protocol += bytes_protocol;
+			m_webseed_total_download_protocol += bytes_protocol;
+		}
+
 		void sent_bytes(int bytes_payload, int bytes_protocol)
 		{
 			INVARIANT_CHECK;
@@ -113,7 +140,9 @@ namespace libtorrent
 		}
 
 		// should be called once every second
-		void second_tick(float tick_interval);
+		//. 2008.06.02 by chongyc
+		//void second_tick(float tick_interval);
+		void second_tick(float tick_interval, bool paused);
 
 		float upload_rate() const { return m_mean_upload_rate; }
 		float download_rate() const { return m_mean_download_rate; }
@@ -121,11 +150,21 @@ namespace libtorrent
 		float upload_payload_rate() const { return m_mean_upload_payload_rate; }
 		float download_payload_rate() const { return m_mean_download_payload_rate; }
 
+		//. 2008.05.20 by chongyc
+		float average_upload_rate() const { return m_average_upload_rate; }
+		float average_download_rate() const { return m_averagr_download_rate; }
+		float average_webseed_rate() const { return m_average_webseed_rate; }
+		float elapsed_time() const { return m_elapsed_time; }
+
 		size_type total_payload_upload() const { return m_total_upload_payload; }
 		size_type total_payload_download() const { return m_total_download_payload; }
 
 		size_type total_protocol_upload() const { return m_total_upload_protocol; }
 		size_type total_protocol_download() const { return m_total_download_protocol; }
+
+		//. 2008.05.20 by chongyc
+		size_type webseed_total_protocol_download() const { return m_webseed_total_download_protocol; }
+		size_type webseed_total_payload_download() const { return m_webseed_total_download_payload; }
 
 		// this is used to offset the statistics when a
 		// peer_connection is opened and have some previous
@@ -182,6 +221,19 @@ namespace libtorrent
 		// only counting protocol chatter
 		size_type m_total_download_protocol;
 		size_type m_total_upload_protocol;
+
+		//. 2008.05.20 by chongyc
+		int m_webseed_download_payload;
+		int m_webseed_download_protocol;
+		size_type m_webseed_total_download_payload;
+		size_type m_webseed_total_download_protocol;
+
+		// 2008.05.20 by chongyc
+		// average download/upload/webseed rates
+		float m_averagr_download_rate;
+		float m_average_upload_rate;
+		float m_average_webseed_rate;
+		float m_elapsed_time ;
 
 		// current mean download/upload rates
 		float m_mean_download_rate;

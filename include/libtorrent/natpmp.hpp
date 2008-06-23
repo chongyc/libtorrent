@@ -35,12 +35,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/socket.hpp"
 #include "libtorrent/intrusive_ptr_base.hpp"
+//. 2008.05.20 by chongyc
+#include "libtorrent/debug.hpp"
 
 #include <boost/function.hpp>
-
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-#include <fstream>
-#endif
 
 namespace libtorrent
 {
@@ -139,9 +137,8 @@ private:
 	
 	bool m_disabled;
 
-#if defined(TORRENT_LOGGING) || defined(TORRENT_VERBOSE_LOGGING)
-	std::ofstream m_log;
-#endif
+	//. 2008.05.20 by chongyc
+	libtorrent::logger	m_log;
 };
 
 }
